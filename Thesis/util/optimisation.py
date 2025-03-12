@@ -13,6 +13,7 @@ from ema_workbench.em_framework.optimization import (HypervolumeMetric,
 from ema_workbench import MultiprocessingEvaluator, ema_logging
 import pandas as pd
 import os
+import time
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     """
@@ -58,6 +59,9 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         algorithm = BorgMOEA
     elif algorithm_name == 'generational_borg':
         algorithm = GenerationalBorg
+
+    # Log time for each run
+    start_time = time.time()
     
     # Run optimisation
     result, convergence = evaluator.optimize(
@@ -68,8 +72,11 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         algorithm=algorithm,
         seed=seed
     )
+
+    # Calculate time taken
+    runtime = time.time() - start_time
     
-    return result, convergence
+    return result, convergence, runtime
 
 def analyse_convergence(results, model, algorithm_names, seeds):
     """
@@ -108,30 +115,62 @@ def analyse_convergence(results, model, algorithm_names, seeds):
     metrics_by_algorithm = {}
     
     for algorithm in algorithm_names:
+        print(f'Analysing convergence for {algorithm}')
         metrics_by_seed = []
         
         for seed in range(seeds):
+            print(f'Processing seed {seed}')
+
             # Load archives
             archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed}.tar.gz")
             
             # Calculate metrics for each archive
             metrics = []
+            previous_hv = None
+            previous_nfe = None
+            time_efficiencies = []
+
             for nfe, archive in archives.items():
                 
                 # Remove index column from archive file
                 archive_no_index = archive.iloc[:, 1:]
+
+                # Calculating time efficiency
+                current_hv = hv.calculate(archive_no_index)
+                time_efficiency = 0.0
+                if previous_hv is not None and int(nfe)>previous_nfe:
+                    hv_change = current_hv - previous_hv
+                    nfe_change = int(nfe) - previous_nfe
+                    time_efficiency = hv_change / nfe_change
                 
+                time_efficiencies.append(time_efficiency)
+                
+                # Calculate metrics
                 scores = {
                     "generational_distance": gd.calculate(archive_no_index),
-                    "hypervolume": hv.calculate(archive_no_index),
+                    "hypervolume": current_hv,
                     "epsilon_indicator": ei.calculate(archive_no_index),
                     "archive_size": len(archive_no_index),
                     "spread": sp.calculate(archive_no_index),
                     "spacing": sm.calculate(archive_no_index),
+                    "time_efficiency": time_efficiency,
                     "nfe": int(nfe),
                 }
                 metrics.append(scores)
+
+                # Store current values for next iteration
+                previous_hv = current_hv
+                previous_nfe = nfe
             
+            # Fix the first point's time_efficiency
+            if len(metrics) > 1:
+                # Find the first non-zero time efficiency value
+                non_zero_efficiencies = [te for te in time_efficiencies if te > 0]
+                if non_zero_efficiencies:
+                    # Use the first non-zero value
+                    first_valid_efficiency = non_zero_efficiencies[0]
+                    metrics[0]["time_efficiency"] = first_valid_efficiency
+
             # Convert to DataFrame and sort by nfe
             metrics_df = pd.DataFrame.from_dict(metrics)
             metrics_df.sort_values(by="nfe", inplace=True)
@@ -141,7 +180,7 @@ def analyse_convergence(results, model, algorithm_names, seeds):
     
     return metrics_by_algorithm
 
-def run_optimisation_experiment(model, algorithms, nfe, seeds):
+def run_optimisation_experiment(model, algorithms, nfe, seeds, core_count):
     """
     Run optimisation experiment with multiple algorithms and seeds
     
@@ -155,28 +194,32 @@ def run_optimisation_experiment(model, algorithms, nfe, seeds):
         Number of function evaluations
     seeds : int
         Number of seeds to use
+    core_count : int
+        Number of cores to use for multiprocessing
     
     Returns:
     --------
     tuple
-        (results, convergences, metrics): optimisation results, convergence data, and metrics
+        (results, convergences, metrics, runtime): optimisation results, convergence data, metrics and runtime
     """
     
     ema_logging.log_to_stderr(ema_logging.INFO)
     
     results = []
     convergences = []
+    runtimes = []
     
-    with MultiprocessingEvaluator(model) as evaluator:
+    with MultiprocessingEvaluator(model, n_processes=core_count) as evaluator:
         for algorithm in algorithms:
             for seed in range(seeds):
-                result, convergence = optimise_problem(
+                result, convergence, runtime = optimise_problem(
                     evaluator, model, algorithm, nfe, seed
                 )
                 results.append(result)
                 convergences.append(convergence)
+                runtimes.append(runtime)
     
     # Analyze convergence
     metrics = analyse_convergence(results, model, algorithms, seeds)
     
-    return results, convergences, metrics
+    return results, convergences, metrics, runtimes
