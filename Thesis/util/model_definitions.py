@@ -2,7 +2,9 @@ from ema_workbench import Model, RealParameter, ScalarOutcome, CategoricalParame
 from platypus import DTLZ2, DTLZ3, Solution
 from JUSTICE_fork.src.util.enumerations import Economy, DamageFunction, Abatement, WelfareFunction, Scenario
 from JUSTICE_fork.solvers.emodps.rbf import RBF
-from JUSTICE_fork.src.util.EMA_model_wrapper import model_wrapper_emodps as original_wrapper
+from JUSTICE_fork.src.util.EMA_model_wrapper import model_wrapper_emodps
+from JUSTICE_fork.src.util.model_time import TimeHorizon
+from JUSTICE_fork.src.util.data_loader import DataLoader
 
 class DTLZ2Model(Model):
     def __init__(self, name, n_objectives, n_position_variables=10):
@@ -161,7 +163,7 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
 # class JUSTICEModel(Model):
 #     def __init__(self, name="JUSTICE", n_regions=57, n_timesteps=40):
 #         """
-#         Initialise the JUSTICE model
+#         Initialize the JUSTICE model
 #         """
 #         super().__init__(name, function=self.justice_function)
         
@@ -169,40 +171,42 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
 #         self.n_regions = n_regions
 #         self.n_timesteps = n_timesteps
         
-#         # RBF parameters
+#         # RBF parameters - matching the working code
+#         n_rbfs = 4
 #         self.n_inputs_rbf = 2
 #         self.n_outputs_rbf = n_regions
         
-#         # Create RBF to determine shape of parameters
-#         rbf = RBF(
-#             n_rbfs=(self.n_inputs_rbf + 2), 
-#             n_inputs=self.n_inputs_rbf, 
-#             n_outputs=self.n_outputs_rbf
-#         )
-#         centers_shape, radii_shape, weights_shape = rbf.get_shape()
+#         # Calculate centers and weights shape like the working code
+#         centers_shape = n_rbfs * self.n_inputs_rbf
+#         weights_shape = n_regions * n_rbfs
         
 #         # Define levers (RBF parameters)
-#         levers_list = []
+#         centers_levers = []
+#         radii_levers = []
+#         weights_levers = []
         
-#         # Add centers
-#         for i in range(centers_shape[0]):
-#             levers_list.append(RealParameter(f"center {i}", -1, 1))
+#         # Add centers and radii with the same ranges as working code
+#         for i in range(centers_shape):
+#             centers_levers.append(RealParameter(f"center {i}", -1.0, 1.0))
+#             radii_levers.append(RealParameter(f"radii {i}", 0.0, 1.0))
         
-#         # Add radii
-#         for i in range(radii_shape[0]):
-#             levers_list.append(RealParameter(f"radii {i}", 0.1, 1))
+#         # Add weights with the same ranges as working code
+#         for i in range(weights_shape):
+#             weights_levers.append(RealParameter(f"weights {i}", 0.0, 1.0))
         
-#         # Add weights
-#         for i in range(weights_shape[0]):
-#             levers_list.append(RealParameter(f"weights {i}", 0, 1))
+#         # Set the levers attribute directly
+#         self.levers = centers_levers + radii_levers + weights_levers
         
-#         self.levers = levers_list
+#         # Calculate emission control start timestep like the working code
+#         # Assuming start_year=2015, timestep=1, emission_control_start_year=2025
+#         emission_control_start_timestep = 10  # (2025-2015)/1
         
-#         # Define constants (using integers directly)
+#         # Define constants - matching the working code
 #         self.constants = [
 #             Constant("n_regions", n_regions),
 #             Constant("n_timesteps", n_timesteps),
-#             Constant("emission_control_start_timestep", 0),
+#             Constant("emission_control_start_timestep", emission_control_start_timestep),
+#             Constant("n_rbfs", n_rbfs),  # Added this from working code
 #             Constant("n_inputs_rbf", self.n_inputs_rbf),
 #             Constant("n_outputs_rbf", self.n_outputs_rbf),
 #             Constant("ssp_rcp_scenario", 2),
@@ -220,125 +224,186 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
     
 #     def justice_function(self, **kwargs):
 #         """
-#         Custom wrapper to ensure parameters are properly passed to model_wrapper_emodps
+#         Run the JUSTICE model with the given inputs
 #         """
-#         # Create a modified copy of kwargs
-#         modified_kwargs = kwargs.copy()
-        
-#         # Create direct instances of the required enums
-#         # This bypasses the from_index method entirely
-#         welfare_enum = WelfareFunction.UTILITARIAN
-#         economy_enum = Economy.NEOCLASSICAL
-#         damage_enum = DamageFunction.KALKUHL
-#         abatement_enum = Abatement.ENERDATA
-        
-#         # Replace the parameters with the actual enum instances
-#         modified_kwargs["social_welfare_function_type"] = welfare_enum
-#         modified_kwargs["economy_type"] = economy_enum
-#         modified_kwargs["damage_function_type"] = damage_enum
-#         modified_kwargs["abatement_type"] = abatement_enum
-        
-#         # Call the model wrapper with our properly formatted parameters
-#         welfare, years_above_threshold = model_wrapper_emodps(**modified_kwargs)
+#         # Simply pass the kwargs directly to model_wrapper_emodps
+#         welfare, years_above_threshold = model_wrapper_emodps(**kwargs)
         
 #         return {
 #             'welfare': welfare,
 #             'years_above_threshold': years_above_threshold
 #         }
 
-def fixed_model_wrapper_emodps(**kwargs):
-    """
-    A fixed version of model_wrapper_emodps that ensures proper enum handling
-    """
-    # Create a modified copy of kwargs
-    modified_kwargs = kwargs.copy()
+
+# def get_justice_model(n_regions=57, n_timesteps=40):
+#     """
+#     Create a JUSTICE model with the specified parameters
     
-    # Directly set the enum values
-    modified_kwargs["social_welfare_function_type"] = WelfareFunction.UTILITARIAN
-    modified_kwargs["economy_type"] = Economy.NEOCLASSICAL
-    modified_kwargs["damage_function_type"] = DamageFunction.KALKUHL
-    modified_kwargs["abatement_type"] = Abatement.ENERDATA
-    
-    # Call the original wrapper with our fixed parameters
-    return original_wrapper(**modified_kwargs)
+#     Parameters:
+#     -----------
+#     n_regions : int
+#         Number of regions in the model
+#     n_timesteps : int
+#         Number of timesteps to simulate
+        
+#     Returns:
+#     --------
+#     model : JUSTICEModel
+#         EMA Workbench model for the JUSTICE problem
+#     """
+#     return JUSTICEModel("JUSTICE", n_regions, n_timesteps)
 
 class JUSTICEModel(Model):
-    def __init__(self, name="JUSTICE", n_regions=57, n_timesteps=40):
+    def __init__(self, name="JUSTICE", n_regions=None, n_timesteps=None):
         """
-        Initialise the JUSTICE model
+        Initialize the JUSTICE model
+        
+        Parameters:
+        -----------
+        name : str
+            Name of the model
+        n_regions : int, optional
+            Number of regions in the model (if None, will use DataLoader.REGION_LIST)
+        n_timesteps : int, optional
+            Number of timesteps to simulate (if None, will calculate from TimeHorizon)
         """
+        # Initialize configuration parameters
+        self.configure_model_parameters()
+        
+        # Initialize data loader and time horizon
+        self.data_loader = DataLoader()
+        self.time_horizon = TimeHorizon(
+            start_year=self.start_year,
+            end_year=self.end_year,
+            data_timestep=self.data_timestep,
+            timestep=self.timestep
+        )
+        
+        # Set regions and timesteps
+        self.n_regions = n_regions if n_regions is not None else len(self.data_loader.REGION_LIST)
+        self.n_timesteps = n_timesteps if n_timesteps is not None else len(self.time_horizon.model_time_horizon)
+        
+        # Calculate emission control start timestep
+        self.emission_control_start_timestep = self.time_horizon.year_to_timestep(
+            year=self.emission_control_start_year, 
+            timestep=self.timestep
+        )
+        
+        # Initialize the model with the justice function
         super().__init__(name, function=self.justice_function)
         
-        # Store parameters
-        self.n_regions = n_regions
-        self.n_timesteps = n_timesteps
+        # Define model components
+        self.define_levers()
+        self.define_constants()
+        self.define_outcomes()
+    
+    def configure_model_parameters(self):
+        """Configure model parameters"""
+        # Time parameters
+        self.start_year = 2015
+        self.end_year = 2300
+        self.data_timestep = 5
+        self.timestep = 1
+        self.emission_control_start_year = 2025
         
         # RBF parameters
+        self.n_rbfs = 4
         self.n_inputs_rbf = 2
-        self.n_outputs_rbf = n_regions
         
-        # Create RBF to determine shape of parameters
-        rbf = RBF(
-            n_rbfs=(self.n_inputs_rbf + 2), 
-            n_inputs=self.n_inputs_rbf, 
-            n_outputs=self.n_outputs_rbf
-        )
-        centers_shape, radii_shape, weights_shape = rbf.get_shape()
+        # Scenario and model type parameters
+        self.scenario_index = 2  # SSP245
+        self.welfare_function_type = 0  # UTILITARIAN
+        self.economy_type = 0  # NEOCLASSICAL
+        self.damage_function_type = 1  # KALKUHL
+        self.abatement_type = 0  # ENERDATA
+    
+    def define_levers(self):
+        """Define model levers (RBF parameters)"""
+        # Calculate shapes for RBF parameters
+        self.n_outputs_rbf = self.n_regions
+        centers_shape = self.n_rbfs * self.n_inputs_rbf
+        weights_shape = self.n_regions * self.n_rbfs
         
-        # Define levers (RBF parameters)
-        levers_list = []
+        # Initialize lever lists
+        centers_levers = []
+        radii_levers = []
+        weights_levers = []
         
-        # Add centers
-        for i in range(centers_shape[0]):
-            levers_list.append(RealParameter(f"center {i}", -1, 1))
+        # Create center and radii parameters
+        for i in range(centers_shape):
+            centers_levers.append(RealParameter(f"center_{i}", -1.0, 1.0))
+            radii_levers.append(RealParameter(f"radii_{i}", 0.0, 1.0))
         
-        # Add radii
-        for i in range(radii_shape[0]):
-            levers_list.append(RealParameter(f"radii {i}", 0.1, 1))
+        # Create weight parameters
+        for i in range(weights_shape):
+            weights_levers.append(RealParameter(f"weights_{i}", 0.0, 1.0))
         
-        # Add weights
-        for i in range(weights_shape[0]):
-            levers_list.append(RealParameter(f"weights {i}", 0, 1))
-        
-        self.levers = levers_list
-        
-        # Define constants - using integers directly
+        # Set the levers attribute
+        self.levers = centers_levers + radii_levers + weights_levers
+    
+    def define_constants(self):
+        """Define model constants"""
         self.constants = [
-            Constant("n_regions", n_regions),
-            Constant("n_timesteps", n_timesteps),
-            Constant("emission_control_start_timestep", 0),
+            Constant("n_regions", self.n_regions),
+            Constant("n_timesteps", self.n_timesteps),
+            Constant("emission_control_start_timestep", self.emission_control_start_timestep),
+            Constant("n_rbfs", self.n_rbfs),
             Constant("n_inputs_rbf", self.n_inputs_rbf),
             Constant("n_outputs_rbf", self.n_outputs_rbf),
-            Constant("ssp_rcp_scenario", 2)
+            Constant("ssp_rcp_scenario", self.scenario_index),
+            Constant("social_welfare_function_type", self.welfare_function_type),
+            Constant("economy_type", self.economy_type),
+            Constant("damage_function_type", self.damage_function_type),
+            Constant("abatement_type", self.abatement_type)
         ]
-        
-        # Define outcomes
+    
+    def define_outcomes(self):
+        """Define model outcomes"""
         self.outcomes = [
-            ScalarOutcome('welfare', ScalarOutcome.MAXIMIZE),
-            ScalarOutcome('years_above_threshold', ScalarOutcome.MINIMIZE)
+            ScalarOutcome(
+                "welfare",
+                variable_name="welfare",
+                kind=ScalarOutcome.MAXIMIZE
+            ),
+            ScalarOutcome(
+                "years_above_threshold", 
+                variable_name="years_above_threshold",
+                kind=ScalarOutcome.MINIMIZE
+            )
         ]
     
     def justice_function(self, **kwargs):
         """
-        Use fixed wrapper instead of the original
+        Run the JUSTICE model with the given inputs
+        
+        Parameters:
+        -----------
+        **kwargs : dict
+            Dictionary with model inputs
+            
+        Returns:
+        --------
+        dict
+            Dictionary with model outputs
         """
-        welfare, years_above_threshold = fixed_model_wrapper_emodps(**kwargs)
+        # Simply pass the kwargs directly to model_wrapper_emodps
+        welfare, years_above_threshold = model_wrapper_emodps(**kwargs)
+        
         return {
             'welfare': welfare,
             'years_above_threshold': years_above_threshold
         }
 
-
-def get_justice_model(n_regions=57, n_timesteps=40):
+def get_justice_model(n_regions=None, n_timesteps=None):
     """
     Create a JUSTICE model with the specified parameters
     
     Parameters:
     -----------
-    n_regions : int
-        Number of regions in the model
-    n_timesteps : int
-        Number of timesteps to simulate
+    n_regions : int, optional
+        Number of regions in the model (if None, will use DataLoader.REGION_LIST)
+    n_timesteps : int, optional
+        Number of timesteps to simulate (if None, will calculate from TimeHorizon)
         
     Returns:
     --------

@@ -118,11 +118,11 @@ def analyse_convergence(results, model, algorithm_names, seeds):
         print(f'Analysing convergence for {algorithm}')
         metrics_by_seed = []
         
-        for seed in range(seeds):
-            print(f'Processing seed {seed}')
+        for i, seed_value in enumerate(seeds):
+            print(f'Processing seed {seed_value}')
 
             # Load archives
-            archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed}.tar.gz")
+            archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed_value}.tar.gz")
             
             # Calculate metrics for each archive
             metrics = []
@@ -211,9 +211,9 @@ def run_optimisation_experiment(model, algorithms, nfe, seeds, core_count):
     
     with MultiprocessingEvaluator(model, n_processes=core_count) as evaluator:
         for algorithm in algorithms:
-            for seed in range(seeds):
+            for i, seed_value in enumerate(seeds):
                 result, convergence, runtime = optimise_problem(
-                    evaluator, model, algorithm, nfe, seed
+                    evaluator, model, algorithm, nfe, seed_value
                 )
                 results.append(result)
                 convergences.append(convergence)
