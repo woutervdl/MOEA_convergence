@@ -160,99 +160,6 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
     """
     return DTLZ3Model("DTLZ3", n_objectives, n_position_variables)
 
-# class JUSTICEModel(Model):
-#     def __init__(self, name="JUSTICE", n_regions=57, n_timesteps=40):
-#         """
-#         Initialize the JUSTICE model
-#         """
-#         super().__init__(name, function=self.justice_function)
-        
-#         # Store parameters
-#         self.n_regions = n_regions
-#         self.n_timesteps = n_timesteps
-        
-#         # RBF parameters - matching the working code
-#         n_rbfs = 4
-#         self.n_inputs_rbf = 2
-#         self.n_outputs_rbf = n_regions
-        
-#         # Calculate centers and weights shape like the working code
-#         centers_shape = n_rbfs * self.n_inputs_rbf
-#         weights_shape = n_regions * n_rbfs
-        
-#         # Define levers (RBF parameters)
-#         centers_levers = []
-#         radii_levers = []
-#         weights_levers = []
-        
-#         # Add centers and radii with the same ranges as working code
-#         for i in range(centers_shape):
-#             centers_levers.append(RealParameter(f"center {i}", -1.0, 1.0))
-#             radii_levers.append(RealParameter(f"radii {i}", 0.0, 1.0))
-        
-#         # Add weights with the same ranges as working code
-#         for i in range(weights_shape):
-#             weights_levers.append(RealParameter(f"weights {i}", 0.0, 1.0))
-        
-#         # Set the levers attribute directly
-#         self.levers = centers_levers + radii_levers + weights_levers
-        
-#         # Calculate emission control start timestep like the working code
-#         # Assuming start_year=2015, timestep=1, emission_control_start_year=2025
-#         emission_control_start_timestep = 10  # (2025-2015)/1
-        
-#         # Define constants - matching the working code
-#         self.constants = [
-#             Constant("n_regions", n_regions),
-#             Constant("n_timesteps", n_timesteps),
-#             Constant("emission_control_start_timestep", emission_control_start_timestep),
-#             Constant("n_rbfs", n_rbfs),  # Added this from working code
-#             Constant("n_inputs_rbf", self.n_inputs_rbf),
-#             Constant("n_outputs_rbf", self.n_outputs_rbf),
-#             Constant("ssp_rcp_scenario", 2),
-#             Constant("social_welfare_function_type", 0),
-#             Constant("economy_type", 0),
-#             Constant("damage_function_type", 1),
-#             Constant("abatement_type", 0)
-#         ]
-        
-#         # Define outcomes
-#         self.outcomes = [
-#             ScalarOutcome('welfare', ScalarOutcome.MAXIMIZE),
-#             ScalarOutcome('years_above_threshold', ScalarOutcome.MINIMIZE)
-#         ]
-    
-#     def justice_function(self, **kwargs):
-#         """
-#         Run the JUSTICE model with the given inputs
-#         """
-#         # Simply pass the kwargs directly to model_wrapper_emodps
-#         welfare, years_above_threshold = model_wrapper_emodps(**kwargs)
-        
-#         return {
-#             'welfare': welfare,
-#             'years_above_threshold': years_above_threshold
-#         }
-
-
-# def get_justice_model(n_regions=57, n_timesteps=40):
-#     """
-#     Create a JUSTICE model with the specified parameters
-    
-#     Parameters:
-#     -----------
-#     n_regions : int
-#         Number of regions in the model
-#     n_timesteps : int
-#         Number of timesteps to simulate
-        
-#     Returns:
-#     --------
-#     model : JUSTICEModel
-#         EMA Workbench model for the JUSTICE problem
-#     """
-#     return JUSTICEModel("JUSTICE", n_regions, n_timesteps)
-
 class JUSTICEModel(Model):
     def __init__(self, name="JUSTICE", n_regions=None, n_timesteps=None):
         """
@@ -332,7 +239,7 @@ class JUSTICEModel(Model):
         # Create center and radii parameters
         for i in range(centers_shape):
             centers_levers.append(RealParameter(f"center_{i}", -1.0, 1.0))
-            radii_levers.append(RealParameter(f"radii_{i}", 0.0, 1.0))
+            radii_levers.append(RealParameter(f"radii_{i}", 0.01, 1.0))
         
         # Create weight parameters
         for i in range(weights_shape):

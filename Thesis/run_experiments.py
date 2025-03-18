@@ -24,11 +24,11 @@ def run_experiments():
     algorithms = ['eps_nsgaii', 'borg', 'generational_borg']
 
     # Define the core counts to be tested
-    core_count = [4,6,8]
+    core_count = [5]
     
     # Define experiment parameters
-    nfe = 5000 
-    num_seeds = 3
+    nfe = 2000 
+    num_seeds = 1
 
     # Using a large range to minimize correlation chances
     random.seed(12345)  # Master seed for reproducibility
