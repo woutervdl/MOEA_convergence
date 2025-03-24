@@ -2,7 +2,7 @@ from ema_workbench import Model, RealParameter, ScalarOutcome, CategoricalParame
 from platypus import DTLZ2, DTLZ3, Solution
 from JUSTICE_fork.src.util.enumerations import Economy, DamageFunction, Abatement, WelfareFunction, Scenario
 from JUSTICE_fork.solvers.emodps.rbf import RBF
-from JUSTICE_fork.src.util.EMA_model_wrapper import model_wrapper_emodps
+from JUSTICE_fork.src.util.EMA_model_wrapper import THESIS_model_wrapper_emodps
 from JUSTICE_fork.src.util.model_time import TimeHorizon
 from JUSTICE_fork.src.util.data_loader import DataLoader
 
@@ -243,7 +243,7 @@ class JUSTICEModel(Model):
         
         # Create weight parameters
         for i in range(weights_shape):
-            weights_levers.append(RealParameter(f"weights_{i}", 0.0, 1.0))
+            weights_levers.append(RealParameter(f"weights_{i}", 0.00001, 1.0))
         
         # Set the levers attribute
         self.levers = centers_levers + radii_levers + weights_levers
@@ -294,7 +294,7 @@ class JUSTICEModel(Model):
             Dictionary with model outputs
         """
         # Simply pass the kwargs directly to model_wrapper_emodps
-        welfare, years_above_threshold = model_wrapper_emodps(**kwargs)
+        welfare, years_above_threshold = THESIS_model_wrapper_emodps(**kwargs)
         
         return {
             'welfare': welfare,

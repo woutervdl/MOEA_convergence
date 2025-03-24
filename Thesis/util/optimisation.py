@@ -11,9 +11,13 @@ from ema_workbench.em_framework.optimization import (HypervolumeMetric,
                                                      to_problem,
                                                      epsilon_nondominated)
 from ema_workbench import MultiprocessingEvaluator, ema_logging
+from ema_workbench.em_framework.outcomes import ScalarOutcome 
 import pandas as pd
+import multiprocessing
 import os
 import time
+from JUSTICE_fork.solvers.convergence.hypervolume import calculate_hypervolume_from_archives
+
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     """
@@ -37,7 +41,12 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     tuple
         (results, convergence): optimisation results and convergence metrics
     """
-    epsilons = [0.05] * len(model.outcomes)
+    
+    # Set epsilon values
+    if model.name == 'JUSTICE':
+        epsilons = [0.01, 0.25]
+    else:
+        epsilons = [0.05] * len(model.outcomes)
     
     os.makedirs("archives", exist_ok=True)
     
@@ -78,6 +87,114 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     
     return result, convergence, runtime
 
+# def analyse_convergence(results, model, algorithm_names, seeds):
+#     """
+#     Analyse convergence metrics from optimisation runs
+    
+#     Parameters:
+#     -----------
+#     results : list
+#         List of optimisation results
+#     model : Model
+#         The problem to optimise
+#     algorithm_names : list
+#         List of algorithm names
+#     seeds : int
+#         Number of seeds used
+    
+#     Returns:
+#     --------
+#     dict
+#         Dictionary of metrics by algorithm and seed
+#     """
+#     # Create problem from model
+#     problem = to_problem(model, searchover="levers")
+
+#     # Set epsilon values
+#     if model.name == 'JUSTICE':
+#         epsilons = [0.01, 0.25]
+#     else:
+#         epsilons = [0.05] * len(model.outcomes)
+    
+#     # Create reference set from all results
+#     reference_set = epsilon_nondominated(results, epsilons, problem)
+    
+#     # Initialise metrics
+#     hv = HypervolumeMetric(reference_set, problem)
+#     gd = GenerationalDistanceMetric(reference_set, problem, d=1)
+#     ei = EpsilonIndicatorMetric(reference_set, problem)
+#     sp = Spread(problem)
+#     sm = SpacingMetric(problem)
+    
+#     # Load archives and calculate metrics
+#     metrics_by_algorithm = {}
+    
+#     for algorithm in algorithm_names:
+#         print(f'Analysing convergence for {algorithm}')
+#         metrics_by_seed = []
+        
+#         for i, seed_value in enumerate(seeds):
+#             print(f'Processing seed {seed_value}')
+
+#             # Load archives
+#             archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed_value}.tar.gz")
+            
+#             # Calculate metrics for each archive
+#             metrics = []
+#             previous_hv = None
+#             previous_nfe = None
+#             time_efficiencies = []
+
+#             for nfe, archive in archives.items():
+                
+#                 # Remove index column from archive file
+#                 archive_no_index = archive.iloc[:, 1:]
+
+#                 # Calculating time efficiency
+#                 current_hv = hv.calculate(archive_no_index)
+#                 time_efficiency = 0.0
+#                 if previous_hv is not None and int(nfe)>previous_nfe:
+#                     hv_change = current_hv - previous_hv
+#                     nfe_change = int(nfe) - previous_nfe
+#                     time_efficiency = hv_change / nfe_change
+                
+#                 time_efficiencies.append(time_efficiency)
+                
+#                 # Calculate metrics
+#                 scores = {
+#                     "generational_distance": gd.calculate(archive_no_index),
+#                     "hypervolume": current_hv,
+#                     "epsilon_indicator": ei.calculate(archive_no_index),
+#                     "archive_size": len(archive_no_index),
+#                     "spread": sp.calculate(archive_no_index),
+#                     "spacing": sm.calculate(archive_no_index),
+#                     "time_efficiency": time_efficiency,
+#                     "nfe": int(nfe),
+#                 }
+#                 metrics.append(scores)
+
+#                 # Store current values for next iteration
+#                 previous_hv = current_hv
+#                 previous_nfe = nfe
+            
+#             # Fix the first point's time_efficiency
+#             if len(metrics) > 1:
+#                 # Find the first non-zero time efficiency value
+#                 non_zero_efficiencies = [te for te in time_efficiencies if te > 0]
+#                 if non_zero_efficiencies:
+#                     # Use the first non-zero value
+#                     first_valid_efficiency = non_zero_efficiencies[0]
+#                     metrics[0]["time_efficiency"] = first_valid_efficiency
+
+#             # Convert to DataFrame and sort by nfe
+#             metrics_df = pd.DataFrame.from_dict(metrics)
+#             metrics_df.sort_values(by="nfe", inplace=True)
+#             metrics_by_seed.append(metrics_df)
+        
+#         metrics_by_algorithm[algorithm] = metrics_by_seed
+    
+#     return metrics_by_algorithm
+
 def analyse_convergence(results, model, algorithm_names, seeds):
     """
     Analyse convergence metrics from optimisation runs
@@ -90,8 +207,8 @@ def analyse_convergence(results, model, algorithm_names, seeds):
         The problem to optimise
     algorithm_names : list
         List of algorithm names
-    seeds : int
-        Number of seeds used
+    seeds : list
+        List of seed values used
     
     Returns:
     --------
@@ -100,83 +217,141 @@ def analyse_convergence(results, model, algorithm_names, seeds):
     """
     # Create problem from model
     problem = to_problem(model, searchover="levers")
+
+    # Set epsilon values based on the model
+    if model.name == 'JUSTICE':
+        epsilons = [0.25, 0.01]
+    else:
+        epsilons = [0.05] * len(model.outcomes)
     
     # Create reference set from all results
-    reference_set = epsilon_nondominated(results, [0.05] * len(model.outcomes), problem)
+    reference_set = epsilon_nondominated(results, epsilons, problem)
     
-    # Initialise metrics
-    hv = HypervolumeMetric(reference_set, problem)
+    # Get outcome names and directions for custom hypervolume
+    outcome_names = [o.name for o in model.outcomes]
+    direction_of_optimization = []
+    for outcome in model.outcomes:
+        if outcome.kind == ScalarOutcome.MAXIMIZE:
+            direction_of_optimization.append("max")
+        else:
+            direction_of_optimization.append("min")
+    
+    # Initialize standard metrics for other calculations
     gd = GenerationalDistanceMetric(reference_set, problem, d=1)
     ei = EpsilonIndicatorMetric(reference_set, problem)
     sp = Spread(problem)
     sm = SpacingMetric(problem)
     
+    # For fallback if custom hypervolume fails
+    standard_hv = HypervolumeMetric(reference_set, problem)
+    
     # Load archives and calculate metrics
     metrics_by_algorithm = {}
     
-    for algorithm in algorithm_names:
-        print(f'Analysing convergence for {algorithm}')
-        metrics_by_seed = []
-        
-        for i, seed_value in enumerate(seeds):
-            print(f'Processing seed {seed_value}')
-
-            # Load archives
-            archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed_value}.tar.gz")
+    # Create a multiprocessing pool for hypervolume calculation
+    with multiprocessing.Pool() as pool:
+        for algorithm in algorithm_names:
+            print(f'Analysing convergence for {algorithm}')
+            metrics_by_seed = []
             
-            # Calculate metrics for each archive
-            metrics = []
-            previous_hv = None
-            previous_nfe = None
-            time_efficiencies = []
-
-            for nfe, archive in archives.items():
+            for i, seed_value in enumerate(seeds):
+                print(f'Processing seed {seed_value}')
                 
-                # Remove index column from archive file
-                archive_no_index = archive.iloc[:, 1:]
-
-                # Calculating time efficiency
-                current_hv = hv.calculate(archive_no_index)
-                time_efficiency = 0.0
-                if previous_hv is not None and int(nfe)>previous_nfe:
-                    hv_change = current_hv - previous_hv
-                    nfe_change = int(nfe) - previous_nfe
-                    time_efficiency = hv_change / nfe_change
+                # Archive file path
+                archive_path = "./archives"
+                archive_file = f"{algorithm}_seed{seed_value}.tar.gz"
                 
-                time_efficiencies.append(time_efficiency)
+                # Load archives
+                archives = ArchiveLogger.load_archives(f"{archive_path}/{archive_file}")
                 
-                # Calculate metrics
-                scores = {
-                    "generational_distance": gd.calculate(archive_no_index),
-                    "hypervolume": current_hv,
-                    "epsilon_indicator": ei.calculate(archive_no_index),
-                    "archive_size": len(archive_no_index),
-                    "spread": sp.calculate(archive_no_index),
-                    "spacing": sm.calculate(archive_no_index),
-                    "time_efficiency": time_efficiency,
-                    "nfe": int(nfe),
-                }
-                metrics.append(scores)
-
-                # Store current values for next iteration
-                previous_hv = current_hv
-                previous_nfe = nfe
+                # Calculate metrics for each archive
+                metrics = []
+                previous_hv = None
+                previous_nfe = None
+                time_efficiencies = []
+                
+                try:
+                    # Try to use custom hypervolume calculation
+                    # Inject the pool into the global namespace of the hypervolume module
+                    import JUSTICE_fork.solvers.convergence.hypervolume as hv_module
+                    hv_module.pool = pool
+                    
+                    hv_results = calculate_hypervolume_from_archives(
+                        list_of_objectives=outcome_names,
+                        direction_of_optimization=direction_of_optimization,
+                        input_data_path=archive_path,
+                        file_name=archive_file,
+                        output_data_path="./results",
+                        saving=False,
+                    )
+                    
+                    # Create a dictionary mapping NFE to hypervolume
+                    hv_dict = dict(zip(hv_results['nfe'].astype(int), hv_results['hypervolume']))
+                    
+                    # Use custom hypervolume results
+                    use_custom_hv = True
+                    print(f"Using custom hypervolume for {algorithm} seed {seed_value}")
+                    
+                except Exception as e:
+                    print(f"Error using custom hypervolume: {str(e)}")
+                    print(f"Falling back to standard hypervolume for {algorithm} seed {seed_value}")
+                    use_custom_hv = False
+                
+                # Process each archive
+                for nfe, archive in archives.items():
+                    nfe_int = int(nfe)
+                    
+                    # Remove index column from archive file
+                    archive_no_index = archive.iloc[:, 1:]
+                    
+                    # Get hypervolume value
+                    if use_custom_hv and nfe_int in hv_dict:
+                        current_hv = hv_dict[nfe_int]
+                    else:
+                        # Fallback to standard hypervolume
+                        current_hv = standard_hv.calculate(archive_no_index)
+                    
+                    # Calculate time efficiency
+                    time_efficiency = 0.0
+                    if previous_hv is not None and previous_nfe is not None and nfe_int > previous_nfe:
+                        hv_change = current_hv - previous_hv
+                        nfe_change = nfe_int - previous_nfe
+                        time_efficiency = hv_change / nfe_change if nfe_change > 0 else 0.0
+                    
+                    time_efficiencies.append(time_efficiency)
+                    
+                    # Calculate all metrics
+                    scores = {
+                        "generational_distance": gd.calculate(archive_no_index),
+                        "hypervolume": current_hv,
+                        "epsilon_indicator": ei.calculate(archive_no_index),
+                        "archive_size": len(archive_no_index),
+                        "spread": sp.calculate(archive_no_index),
+                        "spacing": sm.calculate(archive_no_index),
+                        "time_efficiency": time_efficiency,
+                        "nfe": nfe_int,
+                    }
+                    metrics.append(scores)
+                    
+                    # Store current values for next iteration
+                    previous_hv = current_hv
+                    previous_nfe = nfe_int
+                
+                # Fix the first point's time_efficiency
+                if len(metrics) > 1:
+                    # Find the first non-zero time efficiency value
+                    non_zero_efficiencies = [te for te in time_efficiencies if te > 0]
+                    if non_zero_efficiencies:
+                        # Use the first non-zero value
+                        first_valid_efficiency = non_zero_efficiencies[0]
+                        metrics[0]["time_efficiency"] = first_valid_efficiency
+                
+                # Convert to DataFrame and sort by nfe
+                metrics_df = pd.DataFrame.from_dict(metrics)
+                metrics_df.sort_values(by="nfe", inplace=True)
+                metrics_by_seed.append(metrics_df)
             
-            # Fix the first point's time_efficiency
-            if len(metrics) > 1:
-                # Find the first non-zero time efficiency value
-                non_zero_efficiencies = [te for te in time_efficiencies if te > 0]
-                if non_zero_efficiencies:
-                    # Use the first non-zero value
-                    first_valid_efficiency = non_zero_efficiencies[0]
-                    metrics[0]["time_efficiency"] = first_valid_efficiency
-
-            # Convert to DataFrame and sort by nfe
-            metrics_df = pd.DataFrame.from_dict(metrics)
-            metrics_df.sort_values(by="nfe", inplace=True)
-            metrics_by_seed.append(metrics_df)
-        
-        metrics_by_algorithm[algorithm] = metrics_by_seed
+            metrics_by_algorithm[algorithm] = metrics_by_seed
     
     return metrics_by_algorithm
 
