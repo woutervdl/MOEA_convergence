@@ -1,4 +1,5 @@
 from Thesis.algorithms.borgMOEA import BorgMOEA
+from Thesis.algorithms.sse_nsga_ii import SteadyStateEpsNSGAII
 from Thesis.util.spread import Spread
 from ema_workbench.em_framework.optimization import (HypervolumeMetric,
                                                      EpsilonProgress,
@@ -11,7 +12,8 @@ from ema_workbench.em_framework.optimization import (HypervolumeMetric,
                                                      to_problem,
                                                      epsilon_nondominated)
 from ema_workbench import MultiprocessingEvaluator, ema_logging
-from ema_workbench.em_framework.outcomes import ScalarOutcome 
+from ema_workbench.em_framework.outcomes import ScalarOutcome
+from ema_workbench.em_framework.points import Scenario 
 import pandas as pd
 import multiprocessing
 import os
@@ -44,7 +46,13 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     
     # Set epsilon values
     if model.name == 'JUSTICE':
-        epsilons = [0.01, 0.25]
+        epsilons = [
+            0.01, # welfare
+            0.25, # years above threshold
+            #0.01, # fraction of ensemble members above threshold
+            10, # welfare loss damage
+            10 # welfare loss abatement
+        ]
     else:
         epsilons = [0.05] * len(model.outcomes)
     
@@ -68,132 +76,32 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         algorithm = BorgMOEA
     elif algorithm_name == 'generational_borg':
         algorithm = GenerationalBorg
+    elif algorithm_name == 'sse_nsgaii':
+        algorithm = SteadyStateEpsNSGAII
 
     # Log time for each run
     start_time = time.time()
+
+    opt_params = {
+        'nfe':nfe,
+        'searchover':"levers",
+        'epsilons':epsilons,
+        'convergence':convergence_metrics,
+        'algorithm':algorithm,
+        'seed':seed,
+        'population_size':100
+    }
+
+    if model.name == 'JUSTICE':
+        opt_params['reference'] = Scenario("reference", ssp_rcp_scenario=model.scenario_string)
     
     # Run optimisation
-    result, convergence = evaluator.optimize(
-        nfe=nfe,
-        searchover="levers",
-        epsilons=epsilons,
-        convergence=convergence_metrics,
-        algorithm=algorithm,
-        seed=seed
-    )
+    result, convergence = evaluator.optimize(**opt_params)
 
     # Calculate time taken
     runtime = time.time() - start_time
     
     return result, convergence, runtime
-
-# def analyse_convergence(results, model, algorithm_names, seeds):
-#     """
-#     Analyse convergence metrics from optimisation runs
-    
-#     Parameters:
-#     -----------
-#     results : list
-#         List of optimisation results
-#     model : Model
-#         The problem to optimise
-#     algorithm_names : list
-#         List of algorithm names
-#     seeds : int
-#         Number of seeds used
-    
-#     Returns:
-#     --------
-#     dict
-#         Dictionary of metrics by algorithm and seed
-#     """
-#     # Create problem from model
-#     problem = to_problem(model, searchover="levers")
-
-#     # Set epsilon values
-#     if model.name == 'JUSTICE':
-#         epsilons = [0.01, 0.25]
-#     else:
-#         epsilons = [0.05] * len(model.outcomes)
-    
-#     # Create reference set from all results
-#     reference_set = epsilon_nondominated(results, epsilons, problem)
-    
-#     # Initialise metrics
-#     hv = HypervolumeMetric(reference_set, problem)
-#     gd = GenerationalDistanceMetric(reference_set, problem, d=1)
-#     ei = EpsilonIndicatorMetric(reference_set, problem)
-#     sp = Spread(problem)
-#     sm = SpacingMetric(problem)
-    
-#     # Load archives and calculate metrics
-#     metrics_by_algorithm = {}
-    
-#     for algorithm in algorithm_names:
-#         print(f'Analysing convergence for {algorithm}')
-#         metrics_by_seed = []
-        
-#         for i, seed_value in enumerate(seeds):
-#             print(f'Processing seed {seed_value}')
-
-#             # Load archives
-#             archives = ArchiveLogger.load_archives(f"./archives/{algorithm}_seed{seed_value}.tar.gz")
-            
-#             # Calculate metrics for each archive
-#             metrics = []
-#             previous_hv = None
-#             previous_nfe = None
-#             time_efficiencies = []
-
-#             for nfe, archive in archives.items():
-                
-#                 # Remove index column from archive file
-#                 archive_no_index = archive.iloc[:, 1:]
-
-#                 # Calculating time efficiency
-#                 current_hv = hv.calculate(archive_no_index)
-#                 time_efficiency = 0.0
-#                 if previous_hv is not None and int(nfe)>previous_nfe:
-#                     hv_change = current_hv - previous_hv
-#                     nfe_change = int(nfe) - previous_nfe
-#                     time_efficiency = hv_change / nfe_change
-                
-#                 time_efficiencies.append(time_efficiency)
-                
-#                 # Calculate metrics
-#                 scores = {
-#                     "generational_distance": gd.calculate(archive_no_index),
-#                     "hypervolume": current_hv,
-#                     "epsilon_indicator": ei.calculate(archive_no_index),
-#                     "archive_size": len(archive_no_index),
-#                     "spread": sp.calculate(archive_no_index),
-#                     "spacing": sm.calculate(archive_no_index),
-#                     "time_efficiency": time_efficiency,
-#                     "nfe": int(nfe),
-#                 }
-#                 metrics.append(scores)
-
-#                 # Store current values for next iteration
-#                 previous_hv = current_hv
-#                 previous_nfe = nfe
-            
-#             # Fix the first point's time_efficiency
-#             if len(metrics) > 1:
-#                 # Find the first non-zero time efficiency value
-#                 non_zero_efficiencies = [te for te in time_efficiencies if te > 0]
-#                 if non_zero_efficiencies:
-#                     # Use the first non-zero value
-#                     first_valid_efficiency = non_zero_efficiencies[0]
-#                     metrics[0]["time_efficiency"] = first_valid_efficiency
-
-#             # Convert to DataFrame and sort by nfe
-#             metrics_df = pd.DataFrame.from_dict(metrics)
-#             metrics_df.sort_values(by="nfe", inplace=True)
-#             metrics_by_seed.append(metrics_df)
-        
-#         metrics_by_algorithm[algorithm] = metrics_by_seed
-    
-#     return metrics_by_algorithm
 
 def analyse_convergence(results, model, algorithm_names, seeds):
     """
@@ -220,7 +128,13 @@ def analyse_convergence(results, model, algorithm_names, seeds):
 
     # Set epsilon values based on the model
     if model.name == 'JUSTICE':
-        epsilons = [0.25, 0.01]
+        epsilons = [
+            0.01, # welfare
+            0.25, # years above threshold
+            #0.01, # fraction of ensemble members above threshold
+            10, # welfare loss damage
+            10 # welfare loss abatement
+        ]
     else:
         epsilons = [0.05] * len(model.outcomes)
     

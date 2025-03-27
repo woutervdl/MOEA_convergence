@@ -1,7 +1,6 @@
-from ema_workbench import Model, RealParameter, ScalarOutcome, CategoricalParameter, Constant
+from ema_workbench import Model, RealParameter, ScalarOutcome, Constant, Scenario
 from platypus import DTLZ2, DTLZ3, Solution
-from JUSTICE_fork.src.util.enumerations import Economy, DamageFunction, Abatement, WelfareFunction, Scenario
-from JUSTICE_fork.solvers.emodps.rbf import RBF
+from JUSTICE_fork.src.util.enumerations import get_climate_scenario
 from JUSTICE_fork.src.util.EMA_model_wrapper import THESIS_model_wrapper_emodps
 from JUSTICE_fork.src.util.model_time import TimeHorizon
 from JUSTICE_fork.src.util.data_loader import DataLoader
@@ -195,12 +194,18 @@ class JUSTICEModel(Model):
             year=self.emission_control_start_year, 
             timestep=self.timestep
         )
+
+        self.temperature_year_of_interest_index = self.time_horizon.year_to_timestep(
+            year=self.temperature_year_of_interest,
+            timestep=self.timestep
+        )
         
         # Initialize the model with the justice function
         super().__init__(name, function=self.justice_function)
         
         # Define model components
         self.define_levers()
+        self.define_reference_scenario()
         self.define_constants()
         self.define_outcomes()
     
@@ -212,18 +217,19 @@ class JUSTICEModel(Model):
         self.data_timestep = 5
         self.timestep = 1
         self.emission_control_start_year = 2025
+        self.temperature_year_of_interest = 2100
         
         # RBF parameters
         self.n_rbfs = 4
         self.n_inputs_rbf = 2
         
         # Scenario and model type parameters
-        self.scenario_index = 2  # SSP245
+        self.reference_scenario_index = 2#enumScenario.SSP245  # SSP245
         self.welfare_function_type = 0  # UTILITARIAN
         self.economy_type = 0  # NEOCLASSICAL
         self.damage_function_type = 1  # KALKUHL
         self.abatement_type = 0  # ENERDATA
-    
+
     def define_levers(self):
         """Define model levers (RBF parameters)"""
         # Calculate shapes for RBF parameters
@@ -239,11 +245,11 @@ class JUSTICEModel(Model):
         # Create center and radii parameters
         for i in range(centers_shape):
             centers_levers.append(RealParameter(f"center_{i}", -1.0, 1.0))
-            radii_levers.append(RealParameter(f"radii_{i}", 0.01, 1.0))
+            radii_levers.append(RealParameter(f"radii_{i}", 1e-6, 1.0))
         
         # Create weight parameters
         for i in range(weights_shape):
-            weights_levers.append(RealParameter(f"weights_{i}", 0.00001, 1.0))
+            weights_levers.append(RealParameter(f"weights_{i}", 0, 1.0))
         
         # Set the levers attribute
         self.levers = centers_levers + radii_levers + weights_levers
@@ -257,25 +263,44 @@ class JUSTICEModel(Model):
             Constant("n_rbfs", self.n_rbfs),
             Constant("n_inputs_rbf", self.n_inputs_rbf),
             Constant("n_outputs_rbf", self.n_outputs_rbf),
-            Constant("ssp_rcp_scenario", self.scenario_index),
             Constant("social_welfare_function_type", self.welfare_function_type),
             Constant("economy_type", self.economy_type),
             Constant("damage_function_type", self.damage_function_type),
-            Constant("abatement_type", self.abatement_type)
-        ]
-    
+            Constant("abatement_type", self.abatement_type),
+            Constant("temperature_year_of_interest_index", self.temperature_year_of_interest_index),
+        ]    
+
+    def define_reference_scenario(self):
+        """Define the reference scenario"""
+        self.scenario_string = get_climate_scenario(self.reference_scenario_index)
+
     def define_outcomes(self):
         """Define model outcomes"""
         self.outcomes = [
             ScalarOutcome(
                 "welfare",
                 variable_name="welfare",
-                kind=ScalarOutcome.MAXIMIZE
+                kind=ScalarOutcome.MINIMIZE
             ),
             ScalarOutcome(
                 "years_above_threshold", 
                 variable_name="years_above_threshold",
                 kind=ScalarOutcome.MINIMIZE
+            ),#,
+            # ScalarOutcome(
+            #     "fraction_above_threshold",
+            #     variable_name="fraction_above_threshold",
+            #     kind=ScalarOutcome.MINIMIZE,
+            # ),
+            ScalarOutcome(
+                "welfare_loss_damage",
+                variable_name="welfare_loss_damage",
+                kind=ScalarOutcome.MAXIMIZE,
+            ),
+            ScalarOutcome(
+                "welfare_loss_abatement",
+                variable_name="welfare_loss_abatement",
+                kind=ScalarOutcome.MAXIMIZE,
             )
         ]
     
@@ -293,12 +318,17 @@ class JUSTICEModel(Model):
         dict
             Dictionary with model outputs
         """
+        # Add the scenario index to the kwargs, passing it as constant didn't work
+        kwargs["ssp_rcp_scenario"] = self.reference_scenario_index
         # Simply pass the kwargs directly to model_wrapper_emodps
-        welfare, years_above_threshold = THESIS_model_wrapper_emodps(**kwargs)
+        welfare, years_above_threshold, welfare_loss_damage, welfare_loss_abatement = THESIS_model_wrapper_emodps(**kwargs)
         
         return {
             'welfare': welfare,
-            'years_above_threshold': years_above_threshold
+            'years_above_threshold': years_above_threshold,
+            #'fraction_above_threshold': fraction_above_threshold,
+            'welfare_loss_damage': welfare_loss_damage,
+            'welfare_loss_abatement': welfare_loss_abatement
         }
 
 def get_justice_model(n_regions=None, n_timesteps=None):
