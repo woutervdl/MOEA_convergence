@@ -4,6 +4,7 @@ from JUSTICE_fork.src.util.enumerations import get_climate_scenario
 from JUSTICE_fork.src.util.EMA_model_wrapper import THESIS_model_wrapper_emodps
 from JUSTICE_fork.src.util.model_time import TimeHorizon
 from JUSTICE_fork.src.util.data_loader import DataLoader
+import numpy as np
 
 class DTLZ2Model(Model):
     def __init__(self, name, n_objectives, n_position_variables=10):
@@ -52,7 +53,7 @@ class DTLZ2Model(Model):
             Dictionary with model outputs
         """
         # Extract variables from kwargs
-        variables = [kwargs[f'x{i}'] for i in range(self.n_variables)]
+        variables = np.array([kwargs[f'x{i}'] for i in range(self.n_variables)])
         
         # Create a Solution object
         solution = Solution(self.problem)
@@ -129,7 +130,7 @@ class DTLZ3Model(Model):
             Dictionary with model outputs
         """
         # Extract variables from kwargs
-        variables = [kwargs[f'x{i}'] for i in range(self.n_variables)]
+        variables = np.array([kwargs[f'x{i}'] for i in range(self.n_variables)])
         
         # Create a Solution object
         solution = Solution(self.problem)
