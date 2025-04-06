@@ -225,7 +225,7 @@ class JUSTICEModel(Model):
         self.n_inputs_rbf = 2
         
         # Scenario and model type parameters
-        self.reference_scenario_index = 2#enumScenario.SSP245  # SSP245
+        self.reference_scenario_index = 2 # SSP245
         self.welfare_function_type = 0  # UTILITARIAN
         self.economy_type = 0  # NEOCLASSICAL
         self.damage_function_type = 1  # KALKUHL
@@ -250,7 +250,7 @@ class JUSTICEModel(Model):
         
         # Create weight parameters
         for i in range(weights_shape):
-            weights_levers.append(RealParameter(f"weights_{i}", 0, 1.0))
+            weights_levers.append(RealParameter(f"weights_{i}", 1e-6, 1.0))
         
         # Set the levers attribute
         self.levers = centers_levers + radii_levers + weights_levers

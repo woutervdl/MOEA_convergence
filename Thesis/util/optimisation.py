@@ -24,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 import gc
 from numba import jit,prange
 import numpy as np
+from platypus import Hypervolume
 
 # def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
 #     """
@@ -317,6 +318,10 @@ import numpy as np
     
 #     return results, convergences, metrics, runtimes
 
+# Uncomment for HPC runs
+SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
+ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives")
+os.makedirs(ARCHIVES_PATH, exist_ok=True)
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     """
@@ -352,18 +357,30 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     else:
         epsilons = [0.05] * len(model.outcomes)
     
+    # Uncomment for local runs
     os.makedirs("archives", exist_ok=True)
     
-    # Setup convergence metrics
+    # Setup convergence metrics for HPC
     convergence_metrics = [
         ArchiveLogger(
-            "./archives",
+            ARCHIVES_PATH,
             [l.name for l in model.levers],
             [o.name for o in model.outcomes],
             base_filename=f"{algorithm_name}_seed{seed}.tar.gz",
         ),
         EpsilonProgress(),
     ]
+
+    # Setup convergence metrics for local runs
+    # convergence_metrics = [
+    #     ArchiveLogger(
+    #         "./archives",
+    #         [l.name for l in model.levers],
+    #         [o.name for o in model.outcomes],
+    #         base_filename=f"{algorithm_name}_seed{seed}.tar.gz",
+    #     ),
+    #     EpsilonProgress(),
+    # ]
     
     # Select the appropriate MOEA
     if algorithm_name == 'eps_nsgaii':
@@ -385,7 +402,7 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         'convergence': convergence_metrics,
         'algorithm': algorithm,
         'seed': seed,
-        'population_size': 100
+        'population_size': 2
     }
     
     if model.name == 'JUSTICE':
@@ -441,8 +458,9 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
     archive_file = f"{algorithm}_seed{seed_value}.tar.gz"
     print(f'Processing {algorithm} seed {seed_value}')
     
-    # Load archives
-    archives = ArchiveLogger.load_archives(f"{archives_path}/{archive_file}")
+    # Load archives (upper for local, lower for HPC)
+    #archives = ArchiveLogger.load_archives(f"{archives_path}/{archive_file}")
+    archives = ArchiveLogger.load_archives(os.path.join(ARCHIVES_PATH, archive_file))
     
     # Convert archives to list for batching
     archive_items = list(archives.items())
@@ -461,7 +479,7 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
             file_name=archive_file,
             output_data_path="./results",
             saving=False,
-            pool=None #DIT NOG EEN KEER FIKSEN
+            #pool=None #DIT NOG EEN KEER FIKSEN
         )
         
         # Create a dictionary mapping NFE to hypervolume
@@ -495,7 +513,8 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
                     'gd': executor.submit(gd.calculate, archive_no_index),
                     'ei': executor.submit(ei.calculate, archive_no_index),
                     'spread': executor.submit(sp.calculate, archive_no_index),
-                    'spacing': executor.submit(sm.calculate, archive_no_index)
+                    'spacing': executor.submit(sm.calculate, archive_no_index),
+                    #'hypervolume': executor.submit(standard_hv.calculate, archive_no_index)
                 }
                 scores = {
                     "generational_distance": futures['gd'].result(),
@@ -503,6 +522,7 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
                     "spread": futures['spread'].result(),
                     "spacing": futures['spacing'].result(),
                     "hypervolume": current_hv,
+                    #"hypervolume": futures['hypervolume'].result(),
                     "archive_size": len(archive_no_index),
                     "nfe": nfe_int,
                 }

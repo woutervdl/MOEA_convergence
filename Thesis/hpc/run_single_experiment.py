@@ -73,6 +73,7 @@ import h5py
 #     # Original run_experiments function can be removed or kept for local testing
 #     pass
 
+SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
 
 # Configure once at module level
 ema_logging.log_to_stderr(ema_logging.INFO)
@@ -90,7 +91,8 @@ def run_single_experiment(problem_name, algorithm, cores, nfe, seed):
     random.seed(seed)
     
     # Create result directory structure
-    result_dir = os.path.join("./results", problem_name, f"{cores}_cores", algorithm, f"seed{seed}")
+    result_dir = os.path.join(SCRATCH_BASE,"results", problem_name, f"{cores}cores", algorithm, f"seed{seed}")
+    #result_dir = os.path.join("./results", problem_name, f"{cores}cores", algorithm, f"seed{seed}")
     os.makedirs(result_dir, exist_ok=True)
     
     # Model loading with pre-configured parameters
@@ -122,7 +124,7 @@ def run_single_experiment(problem_name, algorithm, cores, nfe, seed):
 def save_single_result(results, convergence, metrics, runtime, path, 
                                problem_name, algorithm, cores, seed):
     """Optimized result saving with HDF5"""
-    with h5py.File(os.path.join(path, f"results_{problem_name}_{algorithm}_{cores}cores_seed_{seed}.h5"), "w") as hf:
+    with h5py.File(os.path.join(path, f"results_{problem_name}_{algorithm}_{cores}cores_seed{seed}.h5"), "w") as hf:
         # Store results
         results_group = hf.create_group("results")
         for col in results.columns:
@@ -146,5 +148,13 @@ def save_single_result(results, convergence, metrics, runtime, path,
         hf.attrs["seed"] = seed
 
 if __name__ == "__main__":
-    run_single_experiment('DTLZ2', 'eps_nsgaii', 4, 10000, 42) # test
+    #run_single_experiment('DTLZ2', 'borg', 4, 10000, 42)
+    #run_single_experiment('DTLZ2', 'borg', 4, 10000, 17)
+    #run_single_experiment('DTLZ2', 'eps_nsgaii', 4, 10000, 42)
+    #run_single_experiment('DTLZ2', 'eps_nsgaii', 4, 10000, 17)
+    #run_single_experiment('DTLZ2', 'borg', 8, 10000, 42)
+    #run_single_experiment('DTLZ2', 'borg', 8, 10000, 17)
+    #run_single_experiment('DTLZ2', 'eps_nsgaii', 8, 10000, 42)
+    #run_single_experiment('DTLZ2', 'eps_nsgaii', 8, 10000, 17)
+    run_single_experiment('JUSTICE', 'eps_nsgaii', 6, 200, 40) # test
     #pass

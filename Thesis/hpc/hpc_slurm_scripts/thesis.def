@@ -1,0 +1,34 @@
+Bootstrap: docker
+From: python:3.9-slim
+
+%labels
+    Author WouterVanDerLinden
+    Description "Container for MOEA convergence experiments"
+
+%files
+    # Copy entire MOEA_convergence directory from scratch to container
+    /home/wmvanderlinden/MOEA_convergence /opt/MOEA_convergence
+
+%post
+    # System dependencies
+    apt-get update && apt-get install -y \
+        ca-certificates \
+        build-essential \
+        python3-dev \
+        git
+    
+    rm -rf /var/lib/apt/lists/*
+
+    # Initialize submodules using local files (no network required)
+    cd /opt/MOEA_convergence
+    git submodule update --init --recursive --no-fetch
+
+    # Install Python dependencies
+    python3 -m pip install --upgrade pip
+    pip install -r /opt/MOEA_convergence/Thesis/requirements.txt
+    cd /opt/MOEA_convergence/JUSTICE_fork && pip install -r requirements.txt
+
+%environment
+    export PYTHONPATH=/opt/MOEA_convergence:$PYTHONPATH 
+    export LC_ALL=C
+    export LANG=C

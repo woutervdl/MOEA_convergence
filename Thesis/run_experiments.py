@@ -21,14 +21,14 @@ def run_experiments():
     ]
 
     # Define algorithms
-    algorithms = ['eps_nsgaii','borg']#,'generational_borg']
+    algorithms = ['borg', 'eps_nsgaii']#,'generational_borg']
 
     # Define the core counts to be tested
-    core_count = [4,6]
+    core_count = [6]
     
     # Define experiment parameters
-    nfe =2000 
-    num_seeds = 4
+    nfe =200 
+    num_seeds = 1
 
     # Using a large range to minimize correlation chances
     random.seed(12345)  # Master seed for reproducibility

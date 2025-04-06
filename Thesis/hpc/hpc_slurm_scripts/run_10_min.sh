@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name="moea_run_1"
-#SBATCH --time=01:00:00
+#SBATCH --job-name="moea_run_10_min"
+#SBATCH --time=00:10:00
 #SBATCH --partition=compute-p1
 #SBATCH --ntasks=48
 #SBATCH --cpus-per-task=1
