@@ -1,4 +1,4 @@
-from ema_workbench import Model, RealParameter, ScalarOutcome, Constant, Scenario
+from ema_workbench import Model, RealParameter, ScalarOutcome, Constant
 from platypus import DTLZ2, DTLZ3, Solution
 from JUSTICE_fork.src.util.enumerations import get_climate_scenario
 from JUSTICE_fork.src.util.EMA_model_wrapper import THESIS_model_wrapper_emodps

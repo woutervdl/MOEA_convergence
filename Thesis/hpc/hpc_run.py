@@ -1,7 +1,5 @@
 import sys
 from Thesis.hpc.run_single_experiment import *
-import random
-import numpy as np
 
 if __name__ == "__main__":
     problem_idx = int(sys.argv[1])

@@ -3,7 +3,6 @@ from Thesis.util.model_definitions import get_dtlz2_problem, get_dtlz3_problem, 
 from Thesis.util.optimisation import *
 import os
 import random
-import pandas as pd
 import numpy as np
 import h5py
 

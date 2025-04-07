@@ -1,7 +1,7 @@
 from Thesis.algorithms.borgMOEA import BorgMOEA
 from Thesis.algorithms.sse_nsga_ii import SteadyStateEpsNSGAII
 from Thesis.util.spread import Spread
-from ema_workbench.em_framework.optimization import (HypervolumeMetric,
+from ema_workbench.em_framework.optimization import (#HypervolumeMetric,
                                                      EpsilonProgress,
                                                      ArchiveLogger,
                                                      EpsilonIndicatorMetric,
@@ -24,7 +24,6 @@ from concurrent.futures import ThreadPoolExecutor
 import gc
 from numba import jit,prange
 import numpy as np
-from platypus import Hypervolume
 
 # def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
 #     """
@@ -504,8 +503,9 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
             if use_custom_hv and nfe_int in hv_dict:
                 current_hv = hv_dict[nfe_int]
             else:
-                # Fallback to standard hypervolume
-                current_hv = standard_hv.calculate(archive_no_index)
+                # # Fallback to standard hypervolume
+                # current_hv = standard_hv.calculate(archive_no_index)
+                print('Hypervolume error')
             
             # Calculate all metrics
             with ThreadPoolExecutor() as executor:
