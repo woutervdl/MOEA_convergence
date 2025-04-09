@@ -29,7 +29,7 @@ From: python:3.9-slim
     cd /opt/MOEA_convergence/JUSTICE_fork && pip install -r requirements.txt
     
     # Fix EMA Workbench Hypervolume import
-    echo "from platypus import Hypervolume" | cat - /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py > temp && mv temp /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py
+    echo "from platypus.indicators import Hypervolume" | cat - /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py > temp && mv temp /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py
 
 %environment
     export PYTHONPATH=/opt/MOEA_convergence:$PYTHONPATH 

@@ -1,7 +1,7 @@
 from Thesis.algorithms.borgMOEA import BorgMOEA
 from Thesis.algorithms.sse_nsga_ii import SteadyStateEpsNSGAII
 from Thesis.util.spread import Spread
-from ema_workbench.em_framework.optimization import (#HypervolumeMetric,
+from ema_workbench.em_framework.optimization import (HypervolumeMetric,
                                                      EpsilonProgress,
                                                      ArchiveLogger,
                                                      EpsilonIndicatorMetric,
