@@ -24,6 +24,8 @@ from concurrent.futures import ThreadPoolExecutor
 import gc
 from numba import jit,prange
 import numpy as np
+import tempfile
+import shutil
 
 # def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
 #     """
@@ -342,7 +344,7 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     Returns:
     --------
     tuple
-        (results, convergence): optimisation results and convergence metrics
+        (results, convergence, runtime): optimisation results, convergence metrics and runtime
     """
     # Set epsilon values
     if model.name == 'JUSTICE':
@@ -355,17 +357,24 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         ]
     else:
         epsilons = [0.05] * len(model.outcomes)
-    
-    # Uncomment for local runs
-    os.makedirs("archives", exist_ok=True)
-    
-    # Setup convergence metrics for HPC
+
+    # Defining final destination
+    final_archive_dir = os.path.join(ARCHIVES_PATH, f"{algorithm_name}_seed{seed}")
+    os.makedirs(final_archive_dir, exist_ok=True)
+    final_archive_name = "archive.tar.gz"
+    final_archive_path = os.path.join(final_archive_dir, final_archive_name)
+
+    # Creating temporary directories 
+    temp_logger_parent_dir = os.path.join(SCRATCH_BASE, "temp_logger")
+    os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    temp_base_dir = tempfile.mkdtemp(prefix=f"{algorithm_name}_seed{seed}_pid{os.getpid()}_", dir=temp_logger_parent_dir)
+
     convergence_metrics = [
         ArchiveLogger(
-            ARCHIVES_PATH,
+            temp_base_dir, 
             [l.name for l in model.levers],
             [o.name for o in model.outcomes],
-            base_filename=f"{algorithm_name}_seed{seed}.tar.gz",
+            base_filename=final_archive_name
         ),
         EpsilonProgress(),
     ]
@@ -412,6 +421,13 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     
     # Calculate time taken
     runtime = time.time() - start_time
+
+    # Move the archive to the final destination
+    source_archive_path = os.path.join(temp_base_dir, final_archive_name)
+    shutil.move(source_archive_path, final_archive_path)
+
+    # Clean up temporary directory
+    shutil.rmtree(temp_base_dir)
     
     return result, convergence, runtime
 
@@ -454,12 +470,16 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
     """
     problem, reference_set, gd, ei, sp, sm, standard_hv = problem_metrics
     
-    archive_file = f"{algorithm}_seed{seed_value}.tar.gz"
-    print(f'Processing {algorithm} seed {seed_value}')
+    #archive_file = f"{algorithm}_seed{seed_value}.tar.gz"
+    #print(f'Processing {algorithm} seed {seed_value}')
     
     # Load archives (upper for local, lower for HPC)
     #archives = ArchiveLogger.load_archives(f"{archives_path}/{archive_file}")
-    archives = ArchiveLogger.load_archives(os.path.join(ARCHIVES_PATH, archive_file))
+    #archives = ArchiveLogger.load_archives(os.path.join(ARCHIVES_PATH, archive_file))
+
+    archive_dir = os.path.join(archives_path, f"{algorithm}_seed{seed_value}")
+    archive_file = os.path.join(archive_dir, "archive.tar.gz")
+    archives = ArchiveLogger.load_archives(archive_file)
     
     # Convert archives to list for batching
     archive_items = list(archives.items())
@@ -474,8 +494,10 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
         hv_results = calculate_hypervolume_from_archives(
             list_of_objectives=metrics_data['outcome_names'],
             direction_of_optimization=metrics_data['direction_of_optimization'],
-            input_data_path=archives_path,
-            file_name=archive_file,
+            #input_data_path=archives_path,
+            input_data_path=archive_dir,
+            #file_name=archive_file,
+            file_name="archive.tar.gz",
             output_data_path="./results",
             saving=False,
             #pool=None #DIT NOG EEN KEER FIKSEN
@@ -503,9 +525,9 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
             if use_custom_hv and nfe_int in hv_dict:
                 current_hv = hv_dict[nfe_int]
             else:
-                # # Fallback to standard hypervolume
-                # current_hv = standard_hv.calculate(archive_no_index)
-                print('Hypervolume error')
+                # Fallback to standard hypervolume
+                current_hv = standard_hv.calculate(archive_no_index)
+                #print('Hypervolume error')
             
             # Calculate all metrics
             with ThreadPoolExecutor() as executor:
@@ -643,7 +665,7 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
             process_func = partial(
                 process_seed, 
                 algorithm, 
-                archives_path=archive_path,
+                archives_path=ARCHIVES_PATH,
                 metrics_data=metrics_data,
                 problem_metrics=problem_metrics
             )

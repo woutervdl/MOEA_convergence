@@ -6,7 +6,6 @@ From: python:3.9-slim
     Description "Container for MOEA convergence experiments"
 
 %files
-    # Copy entire MOEA_convergence directory from scratch to container
     /home/wmvanderlinden/MOEA_convergence /opt/MOEA_convergence
 
 %post
@@ -19,17 +18,21 @@ From: python:3.9-slim
     
     rm -rf /var/lib/apt/lists/*
 
-    # Initialize submodules using local files (no network required)
+    # Initialize submodules
     cd /opt/MOEA_convergence
     git submodule update --init --recursive --no-fetch
 
-    # Install Python dependencies
+    # Install core dependencies FIRST
     python3 -m pip install --upgrade pip
-    pip install -r /opt/MOEA_convergence/Thesis/requirements.txt
-    cd /opt/MOEA_convergence/JUSTICE_fork && pip install -r requirements.txt
     
-    # Fix EMA Workbench Hypervolume import
-    echo "from platypus.indicators import Hypervolume" | cat - /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py > temp && mv temp /usr/local/lib/python3.9/site-packages/ema_workbench/em_framework/optimization.py
+    # Install other requirements with version locking
+    pip install --no-cache-dir -r /opt/MOEA_convergence/Thesis/requirements.txt
+    
+    # Install JUSTICE_fork without dependencies
+    cd /opt/MOEA_convergence/JUSTICE_fork
+    printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
+    printf 'from setuptools import setup\nsetup(name="justice_fork")\n' > setup.py
+    pip install --no-deps .
 
 %environment
     export PYTHONPATH=/opt/MOEA_convergence:$PYTHONPATH 
