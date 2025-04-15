@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --time=00:00:10
+#SBATCH --time=04:00:00
 #SBATCH --partition=compute-p1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=3G
 #SBATCH --account=education-tpm-msc-epa
-#SBATCH --array=0-17 #(3 problems × 3 algorithms × 2 seeds)
+#SBATCH --array=0-5 #(1 problems × 3 algorithms × 2 seeds)
 
 # This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y
 CORES=$1

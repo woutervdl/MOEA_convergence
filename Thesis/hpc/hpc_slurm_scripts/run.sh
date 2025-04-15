@@ -10,11 +10,25 @@
 CORES=$1
 NFE=3000
 
-# Calculate indices
-PROBLEM_IDX=$(( $SLURM_ARRAY_TASK_ID / 6 ))  # 3 algorithms × 2 seeds = 6 per problem
-ALGORITHM_IDX=$(( ($SLURM_ARRAY_TASK_ID % 6) / 2 ))  # 20 seeds per algorithm
+N_PROBLEMS=3
+N_ALGORITHMS=3
+N_SEEDS=2
 
-# Pass raw SLURM_ARRAY_TASK_ID to hpc_run.py
+ALGOS_PER_PROBLEM=$N_ALGORITHMS
+SEEDS_PER_ALGO=$N_SEEDS
+COMBOS_PER_PROBLEM=$(( $N_ALGORITHMS * $N_SEEDS ))
+
+# Calculate indices from SLURM_ARRAY_TASK_ID
+PROBLEM_IDX=$(( $SLURM_ARRAY_TASK_ID / $COMBOS_PER_PROBLEM )) 
+TEMP_IDX_IN_PROBLEM=$(( $SLURM_ARRAY_TASK_ID % $COMBOS_PER_PROBLEM )) 
+ALGORITHM_IDX=$(( $TEMP_IDX_IN_PROBLEM / $SEEDS_PER_ALGO )) 
+SEED_INSTANCE_IDX=$(( $TEMP_IDX_IN_PROBLEM % $SEEDS_PER_ALGO )) 
+
+# Generate actual seed based only on the seed instance 
+ACTUAL_SEED=$(( 1234 + $SEED_INSTANCE_IDX ))
+
+echo "Task ID: $SLURM_ARRAY_TASK_ID => Problem: $PROBLEM_IDX, Algo: $ALGORITHM_IDX, Seed Instance: $SEED_INSTANCE_IDX, Actual Seed: $ACTUAL_SEED, Cores: $CORES"
+
 srun --export=ALL apptainer exec \
     --env PYTHONPATH=/opt/MOEA_convergence \
     --env LC_ALL=C \
@@ -25,4 +39,4 @@ srun --export=ALL apptainer exec \
     $ALGORITHM_IDX \
     $CORES \
     $NFE \
-    $SLURM_ARRAY_TASK_ID
+    $ACTUAL_SEED 

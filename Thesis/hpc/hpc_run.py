@@ -6,13 +6,11 @@ if __name__ == "__main__":
     algorithm_idx = int(sys.argv[2])
     cores = int(sys.argv[3])
     nfe = int(sys.argv[4])
-    slurm_task_id = int(sys.argv[5]) 
+    seed = int(sys.argv[5]) 
 
     problems = ['DTLZ2', 'DTLZ3', 'JUSTICE']
-    algorithms = ['eps_nsgaii', 'generational_borg', 'borg']
-    
-    # Single source of truth for seed generation
-    seed = 12345 + slurm_task_id
+    #algorithms = ['eps_nsgaii', 'generational_borg', 'borg']
+    algorithms = ['sse_nsgaii', 'eps_nsgaii']
     
     print(f"Running {problems[problem_idx]} with {algorithms[algorithm_idx]} on {cores} cores (seed {seed})")
     
