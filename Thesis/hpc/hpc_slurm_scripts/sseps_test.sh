@@ -25,7 +25,7 @@ ALGORITHM_IDX=$(( $TEMP_IDX_IN_PROBLEM / $SEEDS_PER_ALGO ))
 SEED_INSTANCE_IDX=$(( $TEMP_IDX_IN_PROBLEM % $SEEDS_PER_ALGO )) 
 
 # Generate actual seed based only on the seed instance 
-ACTUAL_SEED=$(( 1234 + $SEED_INSTANCE_IDX ))
+ACTUAL_SEED=$(( 1234 + $SEED_INSTANCE_IDX * 123))
 
 echo "Task ID: $SLURM_ARRAY_TASK_ID => Problem: $PROBLEM_IDX, Algo: $ALGORITHM_IDX, Seed Instance: $SEED_INSTANCE_IDX, Actual Seed: $ACTUAL_SEED, Cores: $CORES"
 
