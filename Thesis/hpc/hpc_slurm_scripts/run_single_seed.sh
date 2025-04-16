@@ -1,18 +1,19 @@
 #!/bin/bash
-#SBATCH --time=04:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=compute-p1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=3G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --account=education-tpm-msc-epa
-#SBATCH --array=0-5 #(1 problems × 3 algorithms × 2 seeds)
+#SBATCH --array=0-8 #(3 problems × 3 algorithms × 1 seeds)
 
-# This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y
+# This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y Z (where Y is the core count and Z is the seed number)
 CORES=$1
-NFE=10000
+SEED=$2
+NFE=50000
 
-N_PROBLEMS=1
+N_PROBLEMS=3
 N_ALGORITHMS=3
-N_SEEDS=2
+N_SEEDS=1
 
 ALGOS_PER_PROBLEM=$N_ALGORITHMS
 SEEDS_PER_ALGO=$N_SEEDS
@@ -21,13 +22,9 @@ COMBOS_PER_PROBLEM=$(( $N_ALGORITHMS * $N_SEEDS ))
 # Calculate indices from SLURM_ARRAY_TASK_ID
 PROBLEM_IDX=$(( $SLURM_ARRAY_TASK_ID / $COMBOS_PER_PROBLEM )) 
 TEMP_IDX_IN_PROBLEM=$(( $SLURM_ARRAY_TASK_ID % $COMBOS_PER_PROBLEM )) 
-ALGORITHM_IDX=$(( $TEMP_IDX_IN_PROBLEM / $SEEDS_PER_ALGO )) 
-SEED_INSTANCE_IDX=$(( $TEMP_IDX_IN_PROBLEM % $SEEDS_PER_ALGO )) 
+ALGORITHM_IDX=$(( $TEMP_IDX_IN_PROBLEM / $SEEDS_PER_ALGO ))  
 
-# Generate actual seed based only on the seed instance 
-ACTUAL_SEED=$(( 1234 + $SEED_INSTANCE_IDX * 123))
-
-echo "Task ID: $SLURM_ARRAY_TASK_ID => Problem: $PROBLEM_IDX, Algo: $ALGORITHM_IDX, Seed Instance: $SEED_INSTANCE_IDX, Actual Seed: $ACTUAL_SEED, Cores: $CORES"
+echo "Task ID: $SLURM_ARRAY_TASK_ID => Problem: $PROBLEM_IDX, Algo: $ALGORITHM_IDX, Seed: $SEED, Cores: $CORES"
 
 srun --export=ALL apptainer exec \
     --env PYTHONPATH=/opt/MOEA_convergence \
@@ -39,4 +36,4 @@ srun --export=ALL apptainer exec \
     $ALGORITHM_IDX \
     $CORES \
     $NFE \
-    $ACTUAL_SEED 
+    $SEED 
