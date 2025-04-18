@@ -27,10 +27,18 @@ import numpy as np
 import tempfile
 import shutil
 
-# Uncomment for HPC runs
+# HPC paths
 SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
 ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives")
 os.makedirs(ARCHIVES_PATH, exist_ok=True)
+TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
+########################
+
+# Local paths
+# BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
+# ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
+# TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
+########################
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     """
@@ -66,15 +74,23 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
     else:
         epsilons = [0.05] * len(model.outcomes)
 
-    # Defining final destination
+    # Local runs
+    # final_archive_dir = os.path.join(ARCHIVES_PATH_LOCAL, f"{algorithm_name}_seed{seed}")
+    # os.makedirs(final_archive_dir, exist_ok=True)
+    # temp_logger_parent_dir = TEMP_LOGGER_BASE_LOCAL
+    # os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    #############
+
+    # HPC runs
     final_archive_dir = os.path.join(ARCHIVES_PATH, f"{algorithm_name}_seed{seed}")
-    os.makedirs(final_archive_dir, exist_ok=True)
+    os.makedirs(final_archive_dir, exist_ok=True) 
+    temp_logger_parent_dir = TEMP_LOGGER_BASE_HPC 
+    os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    ############## 
+
     final_archive_name = "archive.tar.gz"
     final_archive_path = os.path.join(final_archive_dir, final_archive_name)
 
-    # Creating temporary directories 
-    temp_logger_parent_dir = os.path.join(SCRATCH_BASE, "temp_logger")
-    os.makedirs(temp_logger_parent_dir, exist_ok=True)
     temp_base_dir = tempfile.mkdtemp(prefix=f"{algorithm_name}_seed{seed}_pid{os.getpid()}_", dir=temp_logger_parent_dir)
 
     convergence_metrics = [
@@ -86,17 +102,6 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         ),
         EpsilonProgress(),
     ]
-
-    # Setup convergence metrics for local runs
-    # convergence_metrics = [
-    #     ArchiveLogger(
-    #         "./archives",
-    #         [l.name for l in model.levers],
-    #         [o.name for o in model.outcomes],
-    #         base_filename=f"{algorithm_name}_seed{seed}.tar.gz",
-    #     ),
-    #     EpsilonProgress(),
-    # ]
     
     # Select the appropriate MOEA
     if algorithm_name == 'eps_nsgaii':
@@ -177,13 +182,6 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
         DataFrame with metrics for this seed
     """
     problem, reference_set, gd, ei, sp, sm, standard_hv = problem_metrics
-    
-    #archive_file = f"{algorithm}_seed{seed_value}.tar.gz"
-    #print(f'Processing {algorithm} seed {seed_value}')
-    
-    # Load archives (upper for local, lower for HPC)
-    #archives = ArchiveLogger.load_archives(f"{archives_path}/{archive_file}")
-    #archives = ArchiveLogger.load_archives(os.path.join(ARCHIVES_PATH, archive_file))
 
     archive_dir = os.path.join(archives_path, f"{algorithm}_seed{seed_value}")
     archive_file = os.path.join(archive_dir, "archive.tar.gz")
@@ -202,13 +200,10 @@ def process_seed(algorithm, seed_value, archives_path, metrics_data, problem_met
         hv_results = calculate_hypervolume_from_archives(
             list_of_objectives=metrics_data['outcome_names'],
             direction_of_optimization=metrics_data['direction_of_optimization'],
-            #input_data_path=archives_path,
             input_data_path=archive_dir,
-            #file_name=archive_file,
             file_name="archive.tar.gz",
             output_data_path="./results",
             saving=False,
-            #pool=None #DIT NOG EEN KEER FIKSEN
         )
         
         # Create a dictionary mapping NFE to hypervolume
@@ -313,6 +308,14 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
     """
     # Create problem from model
     problem = to_problem(model, searchover="levers")
+
+    # Local runs
+    # archives_path_base_to_use = ARCHIVES_PATH_LOCAL
+    ###############
+
+    # HPC runs
+    archives_path_base_to_use = ARCHIVES_PATH 
+    # #############
     
     # Set epsilon values based on the model
     if model.name == 'JUSTICE':
@@ -357,7 +360,6 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
     
     # Load archives and calculate metrics
     metrics_by_algorithm = {}
-    archive_path = "./archives"
     
     # Use ProcessPoolExecutor for parallel processing of seeds
     # If core_count is not specified, use a reasonable default
@@ -373,7 +375,7 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
             process_func = partial(
                 process_seed, 
                 algorithm, 
-                archives_path=ARCHIVES_PATH,
+                archives_path=archives_path_base_to_use,
                 metrics_data=metrics_data,
                 problem_metrics=problem_metrics
             )
