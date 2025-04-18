@@ -16,8 +16,8 @@ def run_experiments():
     # Define problems
     problems = [
         #('DTLZ2', get_dtlz2_problem(4)),  
-        ('DTLZ3', get_dtlz3_problem(4)),
-        #('JUSTICE', get_justice_model())
+        #('DTLZ3', get_dtlz3_problem(4)),
+        ('JUSTICE', get_justice_model())
     ]
 
     # Define algorithms

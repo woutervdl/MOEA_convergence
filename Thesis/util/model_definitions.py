@@ -186,6 +186,9 @@ class JUSTICEModel(Model):
             timestep=self.timestep
         )
         
+        # Set max ensemble size
+        self.max_ensemble_size = 50
+
         # Set regions and timesteps
         self.n_regions = n_regions if n_regions is not None else len(self.data_loader.REGION_LIST)
         self.n_timesteps = n_timesteps if n_timesteps is not None else len(self.time_horizon.model_time_horizon)
@@ -269,6 +272,7 @@ class JUSTICEModel(Model):
             Constant("damage_function_type", self.damage_function_type),
             Constant("abatement_type", self.abatement_type),
             Constant("temperature_year_of_interest_index", self.temperature_year_of_interest_index),
+            Constant("max_ensemble_size", self.max_ensemble_size)
         ]    
 
     def define_reference_scenario(self):

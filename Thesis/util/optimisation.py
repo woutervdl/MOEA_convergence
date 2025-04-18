@@ -118,7 +118,7 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         'convergence': convergence_metrics,
         'algorithm': algorithm,
         'seed': seed,
-        'population_size': 2
+        'population_size': 100
     }
     
     if model.name == 'JUSTICE':
