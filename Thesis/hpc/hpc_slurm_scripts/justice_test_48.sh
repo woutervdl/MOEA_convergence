@@ -2,7 +2,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --partition=compute-p2
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=3G
+#SBATCH --mem-per-cpu=5G
 #SBATCH --account=education-tpm-msc-epa
 #SBATCH --array=0-8 #(3 problems × 3 algorithms × 1 seeds)
 
