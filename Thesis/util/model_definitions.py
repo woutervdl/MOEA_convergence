@@ -1,9 +1,9 @@
 from ema_workbench import Model, RealParameter, ScalarOutcome, Constant
 from platypus import DTLZ2, DTLZ3, Solution
-from JUSTICE_fork.src.util.enumerations import get_climate_scenario
-from JUSTICE_fork.src.util.EMA_model_wrapper import THESIS_model_wrapper_emodps
-from JUSTICE_fork.src.util.model_time import TimeHorizon
-from JUSTICE_fork.src.util.data_loader import DataLoader
+from JUSTICE_fork.justice.util.enumerations import get_climate_scenario
+from JUSTICE_fork.justice.util.EMA_model_wrapper import THESIS_model_wrapper_emodps
+from JUSTICE_fork.justice.util.model_time import TimeHorizon
+from JUSTICE_fork.justice.util.data_loader import DataLoader
 import numpy as np
 
 class DTLZ2Model(Model):
@@ -187,7 +187,7 @@ class JUSTICEModel(Model):
         )
         
         # Set max ensemble size
-        self.max_ensemble_size = 100
+        self.max_ensemble_size = 50
 
         # Set regions and timesteps
         self.n_regions = n_regions if n_regions is not None else len(self.data_loader.REGION_LIST)
