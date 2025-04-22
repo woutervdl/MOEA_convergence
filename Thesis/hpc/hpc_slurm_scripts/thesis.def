@@ -31,7 +31,7 @@ From: python:3.9-slim
     # Install JUSTICE_fork without dependencies
     cd /opt/MOEA_convergence/JUSTICE_fork
     printf '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"\n' > pyproject.toml
-    printf 'from setuptools import setup\nsetup(name="justice_fork")\n' > setup.py
+    printf 'from setuptools import setup, find_packages\nsetup(name="justice_fork", packages=find_packages())\n' > setup.py
     pip install --no-deps .
 
 %environment
