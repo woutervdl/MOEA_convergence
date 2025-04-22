@@ -187,7 +187,7 @@ class JUSTICEModel(Model):
         )
         
         # Set max ensemble size
-        self.max_ensemble_size = 50
+        self.max_ensemble_size = 100
 
         # Set regions and timesteps
         self.n_regions = n_regions if n_regions is not None else len(self.data_loader.REGION_LIST)
