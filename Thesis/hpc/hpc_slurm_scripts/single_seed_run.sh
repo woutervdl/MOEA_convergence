@@ -2,7 +2,7 @@
 #SBATCH --time=30:00:00
 #SBATCH --partition=memory
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=500G
+#SBATCH --mem-per-cpu=16G
 #SBATCH --account=research-tpm-mas
 #SBATCH --array=0-8 #(3 problems × 3 algorithms × 1 seeds)
 
