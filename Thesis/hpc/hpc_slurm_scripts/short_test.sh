@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --time=04:00:00
-#SBATCH --partition=compute-p2
+#SBATCH --partition=memory
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=5G
-#SBATCH --account=education-tpm-msc-epa
+#SBATCH --mem=500G
+#SBATCH --account=research-tpm-mas
 #SBATCH --array=0-8 #(3 problems × 3 algorithms × 1 seeds)
 
 # This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y Z (where Y is the core count and Z is the seed number)
