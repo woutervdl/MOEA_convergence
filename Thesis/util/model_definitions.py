@@ -187,7 +187,7 @@ class JUSTICEModel(Model):
         )
         
         # Set max ensemble size
-        self.max_ensemble_size = 30
+        self.max_ensemble_size = 40
 
         # Set regions and timesteps
         self.n_regions = n_regions if n_regions is not None else len(self.data_loader.REGION_LIST)
@@ -249,11 +249,11 @@ class JUSTICEModel(Model):
         # Create center and radii parameters
         for i in range(centers_shape):
             centers_levers.append(RealParameter(f"center_{i}", -1.0, 1.0))
-            radii_levers.append(RealParameter(f"radii_{i}", 1e-6, 1.0))
+            radii_levers.append(RealParameter(f"radii_{i}", 1e-4, 1.0))
         
         # Create weight parameters
         for i in range(weights_shape):
-            weights_levers.append(RealParameter(f"weights_{i}", 1e-6, 1.0))
+            weights_levers.append(RealParameter(f"weights_{i}", 1e-4, 1.0))
         
         # Set the levers attribute
         self.levers = centers_levers + radii_levers + weights_levers

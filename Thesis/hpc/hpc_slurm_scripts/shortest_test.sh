@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=24:00:00
+#SBATCH --time=01:00:00
 #SBATCH --partition=memory
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=20G
@@ -9,7 +9,7 @@
 # This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y Z (where Y is the core count and Z is the seed number)
 CORES=$1
 SEED=$2
-NFE=50000
+NFE=2000
 
 N_PROBLEMS=3
 N_ALGORITHMS=3
