@@ -249,7 +249,7 @@ class JUSTICEModel(Model):
         # Create center and radii parameters
         for i in range(centers_shape):
             centers_levers.append(RealParameter(f"center_{i}", -1.0, 1.0))
-            radii_levers.append(RealParameter(f"radii_{i}", 0.1, 1.0))
+            radii_levers.append(RealParameter(f"radii_{i}", 1e-4, 1.0))
         
         # Create weight parameters
         for i in range(weights_shape):
