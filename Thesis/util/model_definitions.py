@@ -97,14 +97,12 @@ class DTLZ2Model(Model):
         # 4. Calculate corresponding objective values (using helper, g=0)
         f_values = calculate_dtlz_objectives(xI_values, M)
 
-        # 5. Create DataFrame
         lever_names = [l.name for l in self.levers]
         outcome_names = [o.name for o in self.outcomes]
 
         df_levers = pd.DataFrame(x_values, columns=lever_names)
         df_outcomes = pd.DataFrame(f_values, columns=outcome_names)
 
-        # Combine levers and outcomes
         pareto_solutions_df = pd.concat([df_levers, df_outcomes], axis=1)
 
         return pareto_solutions_df
