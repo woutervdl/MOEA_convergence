@@ -15,20 +15,20 @@ def run_experiments():
 
     # Define problems
     problems = [
-        #('DTLZ2', get_dtlz2_problem(4)),  
-        #('DTLZ3', get_dtlz3_problem(4)),
-        ('JUSTICE', get_justice_model())
+        ('DTLZ2', get_dtlz2_problem(4)),  
+        ('DTLZ3', get_dtlz3_problem(4)),
+        #('JUSTICE', get_justice_model())
     ]
 
     # Define algorithms
-    algorithms = ['borg', 'eps_nsgaii']#,'generational_borg']
+    algorithms = ['eps_nsgaii','generational_borg','borg']
 
     # Define the core counts to be tested
     core_count = [6]
     
     # Define experiment parameters
-    nfe =200 
-    num_seeds = 1
+    nfe =2000 
+    num_seeds = 2
 
     # Using a large range to minimize correlation chances
     random.seed(12345)  # Master seed for reproducibility

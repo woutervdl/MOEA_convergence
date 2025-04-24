@@ -9,7 +9,7 @@
 # This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y Z (where Y is the core count and Z is the seed number)
 CORES=$1
 SEED=$2
-NFE=50000
+NFE=70000
 
 N_PROBLEMS=3
 N_ALGORITHMS=3

@@ -5,6 +5,7 @@ from JUSTICE_fork.justice.util.EMA_model_wrapper import THESIS_model_wrapper_emo
 from JUSTICE_fork.justice.util.model_time import TimeHorizon
 from JUSTICE_fork.justice.util.data_loader import DataLoader
 import numpy as np
+import pandas as pd
 
 class DTLZ2Model(Model):
     def __init__(self, name, n_objectives, n_position_variables=10):
@@ -64,6 +65,49 @@ class DTLZ2Model(Model):
         
         # Return the objectives as a dictionary
         return {f'f{i}': solution.objectives[i] for i in range(self.n_objectives)}
+    
+    def generate_true_pareto_solutions(self, n_points=1000):
+        """
+        Generates decision variables AND corresponding objective values
+        for points approximating the true Pareto front of DTLZ2.
+
+        Variables x_M are fixed at 0.5. Variables x_I are sampled.
+        Objectives are calculated directly.
+
+        Returns:
+        --------
+        pandas.DataFrame
+            DataFrame with columns for all levers (x0..xn-1) and
+            outcomes (f0..fM-1).
+        """
+        M = self.n_objectives
+        n_vars = self.n_variables
+        k = n_vars - (M - 1) # Number of x_M variables
+
+        # 1. Generate x_I variables (x0 to x_{M-2}) uniformly in [0, 1]
+        # These correspond to the angle parameters
+        xI_values = np.random.rand(n_points, M - 1)
+
+        # 2. Create x_M variables (x_{M-1} to x_{n-1}) fixed at 0.5
+        xM_values = np.full((n_points, k), 0.5)
+
+        # 3. Combine into full decision variable vectors
+        x_values = np.hstack((xI_values, xM_values))
+
+        # 4. Calculate corresponding objective values (using helper, g=0)
+        f_values = calculate_dtlz_objectives(xI_values, M)
+
+        # 5. Create DataFrame
+        lever_names = [l.name for l in self.levers]
+        outcome_names = [o.name for o in self.outcomes]
+
+        df_levers = pd.DataFrame(x_values, columns=lever_names)
+        df_outcomes = pd.DataFrame(f_values, columns=outcome_names)
+
+        # Combine levers and outcomes
+        pareto_solutions_df = pd.concat([df_levers, df_outcomes], axis=1)
+
+        return pareto_solutions_df
 
 def get_dtlz2_problem(n_objectives, n_position_variables=10):
     """
@@ -141,6 +185,38 @@ class DTLZ3Model(Model):
         
         # Return the objectives as a dictionary
         return {f'f{i}': solution.objectives[i] for i in range(self.n_objectives)}
+    
+    def generate_true_pareto_solutions(self, n_points=1000):
+        """
+        Generates decision variables AND corresponding objective values
+        for points approximating the true *global* Pareto front of DTLZ3.
+
+        Variables x_M are fixed at 0.5 (minimizes g). Variables x_I are sampled.
+        Objectives are calculated directly (assuming g=0).
+
+        Returns:
+        --------
+        pandas.DataFrame
+            DataFrame with columns for all levers (x0..xn-1) and
+            outcomes (f0..fM-1).
+        """
+        # The variable settings for the global front are the same as DTLZ2
+        M = self.n_objectives
+        n_vars = self.n_variables
+        k = n_vars - (M - 1) # Number of x_M variables
+
+        xI_values = np.random.rand(n_points, M - 1)
+        xM_values = np.full((n_points, k), 0.5)
+        x_values = np.hstack((xI_values, xM_values))
+        f_values = calculate_dtlz_objectives(xI_values, M)
+
+        lever_names = [l.name for l in self.levers]
+        outcome_names = [o.name for o in self.outcomes]
+        df_levers = pd.DataFrame(x_values, columns=lever_names)
+        df_outcomes = pd.DataFrame(f_values, columns=outcome_names)
+        pareto_solutions_df = pd.concat([df_levers, df_outcomes], axis=1)
+
+        return pareto_solutions_df
 
 def get_dtlz3_problem(n_objectives, n_position_variables=10):
     """
@@ -159,6 +235,27 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
         EMA Workbench model for the DTLZ3 problem
     """
     return DTLZ3Model("DTLZ3", n_objectives, n_position_variables)
+
+# --- Helper function to calculate DTLZ objectives from x_I (assuming g=0) ---
+def calculate_dtlz_objectives(xI_values, M):
+    """Calculates DTLZ objectives from x_I variables assuming g=0."""
+    n_points = xI_values.shape[0]
+    f = np.ones((n_points, M))
+    # Convert x_I (in [0,1]) to angles theta (in [0, pi/2])
+    thetas = xI_values * (np.pi / 2.0)
+
+    for m in range(M): # Objective index m=0..M-1
+        idx = M - 1 - m # Corresponding theta/xI index
+        if m == 0: # Last objective f_M
+            f[:, m] = np.sin(thetas[:, 0])
+        elif m == M - 1: # First objective f_1
+            f[:, m] = np.prod(np.cos(thetas), axis=1)
+        else: # Intermediate objectives f_2..f_{M-1}
+            # Product of cosines up to theta_{idx-1} * sin(theta_{idx})
+            f[:, m] = np.prod(np.cos(thetas[:, idx + 1:]), axis=1) * np.sin(thetas[:, idx])
+
+    # Need to reverse the order of calculated objectives to match f1, f2, ... fM
+    return f[:, ::-1]
 
 class JUSTICEModel(Model):
     def __init__(self, name="JUSTICE", n_regions=None, n_timesteps=None):

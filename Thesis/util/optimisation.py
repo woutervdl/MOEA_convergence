@@ -28,16 +28,16 @@ import tempfile
 import shutil
 
 ###################### HPC paths
-SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
-ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives")
-os.makedirs(ARCHIVES_PATH, exist_ok=True)
-TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
+# SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
+# ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives")
+# os.makedirs(ARCHIVES_PATH, exist_ok=True)
+# TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
 ########################
 
 ######################## Local paths
-# BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
-# ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
-# TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
+BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
+ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
+TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
 ########################
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
@@ -75,17 +75,17 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed):
         epsilons = [0.05] * len(model.outcomes)
 
     ############ Local runs
-    # final_archive_dir = os.path.join(ARCHIVES_PATH_LOCAL, f"{algorithm_name}_seed{seed}")
-    # os.makedirs(final_archive_dir, exist_ok=True)
-    # temp_logger_parent_dir = TEMP_LOGGER_BASE_LOCAL
-    # os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    final_archive_dir = os.path.join(ARCHIVES_PATH_LOCAL, f"{algorithm_name}_seed{seed}")
+    os.makedirs(final_archive_dir, exist_ok=True)
+    temp_logger_parent_dir = TEMP_LOGGER_BASE_LOCAL
+    os.makedirs(temp_logger_parent_dir, exist_ok=True)
     #############
 
     ############### HPC runs
-    final_archive_dir = os.path.join(ARCHIVES_PATH, f"{algorithm_name}_seed{seed}")
-    os.makedirs(final_archive_dir, exist_ok=True) 
-    temp_logger_parent_dir = TEMP_LOGGER_BASE_HPC 
-    os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    # final_archive_dir = os.path.join(ARCHIVES_PATH, f"{algorithm_name}_seed{seed}")
+    # os.makedirs(final_archive_dir, exist_ok=True) 
+    # temp_logger_parent_dir = TEMP_LOGGER_BASE_HPC 
+    # os.makedirs(temp_logger_parent_dir, exist_ok=True)
     ############## 
 
     final_archive_name = "archive.tar.gz"
@@ -310,11 +310,11 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
     problem = to_problem(model, searchover="levers")
 
     ############### Local runs
-    # archives_path_base_to_use = ARCHIVES_PATH_LOCAL
+    archives_path_base_to_use = ARCHIVES_PATH_LOCAL
     ###############
 
     ############### HPC runs
-    archives_path_base_to_use = ARCHIVES_PATH 
+    # archives_path_base_to_use = ARCHIVES_PATH 
     # #############
     
     # Set epsilon values based on the model
@@ -329,8 +329,10 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
     else:
         epsilons = [0.05] * len(model.outcomes)
     
-    # Create reference set from all results
-    reference_set = epsilon_nondominated(results, epsilons, problem)
+    if hasattr(model, 'generate_true_pareto_solutions'):
+        reference_set = model.generate_true_pareto_solutions() # Generate true Pareto solutions for DTLZ problems
+    else:
+        reference_set = epsilon_nondominated(results, epsilons, problem)
     
     # Get outcome names and directions for custom hypervolume
     outcome_names = [o.name for o in model.outcomes]
@@ -346,7 +348,8 @@ def analyse_convergence(results, model, algorithm_names, seeds, core_count=None)
     ei = EpsilonIndicatorMetric(reference_set, problem)
     sp = Spread(problem)
     sm = SpacingMetric(problem)
-    # For fallback if custom hypervolume fails
+    
+    # Fallback standard hypervolume metric
     standard_hv = HypervolumeMetric(reference_set, problem)
     
     # Prepare metrics data dictionary
