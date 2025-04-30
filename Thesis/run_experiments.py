@@ -27,8 +27,8 @@ def run_experiments():
     core_count = [6]
     
     # Define experiment parameters
-    nfe =2000 
-    num_seeds = 2
+    nfe =50000 
+    num_seeds = 1
 
     # Using a large range to minimize correlation chances
     random.seed(12345)  # Master seed for reproducibility
