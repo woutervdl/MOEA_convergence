@@ -377,7 +377,7 @@ cython_debug/
 .DS_Store
 
 #Thesis
-figures/*
-hpc/results/*
-hpc/slurm_out/*
-results/*
+Thesis/figures/
+Thesis/hpc/results/
+Thesis/hpc/slurm_out/
+Thesis/results/
