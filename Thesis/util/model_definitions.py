@@ -234,7 +234,6 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
     """
     return DTLZ3Model("DTLZ3", n_objectives, n_position_variables)
 
-# --- Helper function to calculate DTLZ objectives from x_I (assuming g=0) ---
 def calculate_dtlz_objectives(xI_values, M):
     """Calculates DTLZ objectives from x_I variables assuming g=0."""
     n_points = xI_values.shape[0]

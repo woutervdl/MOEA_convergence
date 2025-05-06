@@ -9,8 +9,7 @@ if __name__ == "__main__":
     seed = int(sys.argv[5]) 
 
     problems = ['DTLZ2', 'DTLZ3', 'JUSTICE']
-    algorithms = ['eps_nsgaii', 'generational_borg', 'borg']
-    #algorithms = ['sse_nsgaii', 'eps_nsgaii']
+    algorithms = ['eps_nsgaii', 'sse_nsgaii', 'borg', 'generational_borg']
     
     print(f"Running {problems[problem_idx]} with {algorithms[algorithm_idx]} on {cores} cores (seed {seed})")
     

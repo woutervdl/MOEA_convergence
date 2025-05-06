@@ -1,12 +1,14 @@
-from platypus import AbstractGeneticAlgorithm, EpsilonBoxArchive, nondominated_sort, nondominated_truncate, AdaptiveTimeContinuation, default_variator
-from platypus.operators import RandomGenerator, TournamentSelector, UM
 
-class SteadyStateEpsNSGAII_Core(AbstractGeneticAlgorithm):
-    """
-    Core steady-state algorithm inspired by NSGA-II using EpsilonBoxArchive.
-    Designed to be wrapped by AdaptiveTimeContinuation.
-    """
+from platypus import (EpsilonBoxArchive, nondominated_sort,
+                      nondominated_truncate, AdaptiveTimeContinuation,
+                      NSGAII, RandomGenerator, TournamentSelector, UM)
 
+class SteadyStateNSGAII_for_EpsilonArchive(NSGAII):
+    """
+    A steady-state version of NSGAII's core logic, designed to be used
+    with an EpsilonBoxArchive. It overrides the generational iteration
+    with a steady-state one.
+    """
     def __init__(self,
                  problem,
                  epsilons, 
@@ -15,68 +17,62 @@ class SteadyStateEpsNSGAII_Core(AbstractGeneticAlgorithm):
                  selector=TournamentSelector(2),
                  variator=None,
                  **kwargs):
-        """ Initialises the steady-state core algorithm. """
-        super().__init__(problem, population_size, generator, **kwargs)
-        self.selector = selector
-        self.variator = variator
-        self.archive = EpsilonBoxArchive(epsilons)
-        # The result should reflect the archive's content
-        self.result = self.archive
-
-    def initialize(self):
-        """ Initialises population, evaluates, sets default variator, populates archive. """
-        super().initialize() # Creates and evaluates initial self.population
-
-        # Set default variator if none provided
-        if self.variator is None:
-            self.variator = default_variator(self.problem)
-
-        # Populate the archive with the initial population
-        self.archive.extend(self.population)
-        # Ensure self.result points to the archive list object
-        self.result = self.archive
+        # Initialise NSGAII but pass an EpsilonBoxArchive as its archive
+        super().__init__(problem,
+                         population_size=population_size,
+                         generator=generator,
+                         selector=selector,
+                         variator=variator,
+                         archive=EpsilonBoxArchive(epsilons), # Use EpsilonBoxArchive
+                         **kwargs)
 
     def iterate(self):
-        """ Performs one steady-state iteration. """
+        """
+        Performs one steady-state iteration:
+        1. Select parents (typically 2).
+        2. Create offspring (typically 1 or 2).
+        3. Evaluate new offspring.
+        4. Integrate offspring into the population using NSGA-II's selection (rank & diversity).
+        5. Add the evaluated offspring to the EpsilonBoxArchive.
+        """
         # 1. Select parents
-        parents = self.selector.select(self.variator.arity, self.population)
+        # If variator.arity is not defined or different from selector needs, adjust.
+        # For typical genetic operators (SBX, PM), arity is 2.
+        num_parents = self.variator.arity if hasattr(self.variator, 'arity') else 2
+        parents = self.selector.select(num_parents, self.population)
 
-        # 2. Create offspring (typically 1 or 2 from variator)
-        offspring_list = self.variator.evolve(parents)
+        # 2. Create offspring
+        offspring_list = self.variator.evolve(parents) # variator typically produces 1 or 2 offspring
 
         # 3. Evaluate new offspring
         self.evaluate_all(offspring_list) # Updates self.nfe
 
-        # 4. Integrate offspring and select next population (N+k -> N)
-        for offspring in offspring_list:
+        # 4. Integrate offspring and select next population (N + k -> N)
+        # For each new offspring, add it to the pool and re-select.
+        # This maintains population size and uses NSGA-II's survival criteria.
+        current_population = list(self.population) # Make a mutable copy
+        for offspring_individual in offspring_list:
             # Combine current population and the new offspring
-            pool = self.population + [offspring]
+            pool = current_population + [offspring_individual]
 
             # Apply standard NSGA-II survival selection: rank + diversity
             nondominated_sort(pool)
             # Truncate back to population size using rank/diversity
-            self.population = nondominated_truncate(pool, self.population_size)
+            current_population = nondominated_truncate(pool, self.population_size)
+        
+        self.population = current_population # Update the main population
 
-            # 5. Update the Epsilon Archive with the offspring
-            #    The archive handles epsilon-dominance internally.
-            self.archive.add(offspring)
+        # 5. Update the Epsilon Archive with the (evaluated) offspring
+        # self.archive is the EpsilonBoxArchive instance.
+        # Adding offspring_list ensures new candidates are considered by the archive.
+        self.archive.extend(offspring_list)
 
-        # 6. Ensure result points to the potentially updated archive
-        #    (already points to the list object, content may have changed)
-        self.result = self.archive
-
-    def step(self):
-        """ Defines one step of the algorithm for the runner. """
-        if self.nfe == 0:
-            self.initialize()
-        else:
-            self.iterate()
-        # Result is always the archive, which is updated in initialize/iterate
-
+# The wrapper class remains very similar, just using the new core
 class SteadyStateEpsNSGAII(AdaptiveTimeContinuation):
     """
     This class provides the same interface and adaptive restart behavior
-    as the original EpsNSGAII, but uses the steady-state core logic.
+    as the original EpsNSGAII, but uses the steady-state core logic
+    derived from NSGAII.
     """
     def __init__(self,
                  problem,
@@ -91,17 +87,22 @@ class SteadyStateEpsNSGAII(AdaptiveTimeContinuation):
                  population_ratio = 4.0,
                  min_population_size = 10,
                  max_population_size = 10000,
-                 mutator = UM(1.0), # Assuming UM is available
+                 mutator = None, # Default mutator (UM(1.0)) will be set by AdaptiveTimeContinuation if None
                  **kwargs):
 
-        # Instantiate the STEADY-STATE core algorithm
-        core_algorithm = SteadyStateEpsNSGAII_Core(problem,
-                                                   epsilons,
-                                                   population_size,
-                                                   generator,
-                                                   selector,
-                                                   variator,
-                                                   **kwargs)
+        # Instantiate the NEW STEADY-STATE core algorithm
+        core_algorithm = SteadyStateNSGAII_for_EpsilonArchive(
+            problem,
+            epsilons,
+            population_size=population_size,
+            generator=generator,
+            selector=selector,
+            variator=variator,
+            **kwargs)
+
+        # Set default mutator for AdaptiveTimeContinuation if none is provided
+        if mutator is None:
+            mutator = UM(probability=1.0/problem.nvars if problem.nvars > 0 else 0.1) # Example default
 
         # Initialise the AdaptiveTimeContinuation wrapper with the steady-state core
         super().__init__(algorithm=core_algorithm,
@@ -111,4 +112,3 @@ class SteadyStateEpsNSGAII(AdaptiveTimeContinuation):
                          min_population_size=min_population_size,
                          max_population_size=max_population_size,
                          mutator=mutator)
-
