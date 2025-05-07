@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --time=30:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=memory
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=20G
 #SBATCH --account=research-tpm-mas
-#SBATCH --array=0-11 #(3 problems × 4 algorithms × 1 seeds)
+#SBATCH --array=0-8 #(3 problems × 3 algorithms × 1 seeds)
 
 # This script should be submitted with sbatch --job-name="X" --ntasks=Y run.sh Y Z (where Y is the core count and Z is the seed number)
 CORES=$1
@@ -12,7 +12,7 @@ SEED=$2
 NFE=70000
 
 N_PROBLEMS=3
-N_ALGORITHMS=4
+N_ALGORITHMS=3
 N_SEEDS=1
 
 ALGOS_PER_PROBLEM=$N_ALGORITHMS
@@ -30,7 +30,7 @@ srun --export=ALL apptainer exec \
     --env PYTHONPATH=/opt/MOEA_convergence \
     --env LC_ALL=C \
     --env LANG=C \
-    /scratch/wmvanderlinden/MOEA_convergence/moea.sif \
+    /scratch/wmvanderlinden/MOEA_convergence/moea_final.sif \
     python /opt/MOEA_convergence/Thesis/hpc/hpc_run.py \
     $PROBLEM_IDX \
     $ALGORITHM_IDX \

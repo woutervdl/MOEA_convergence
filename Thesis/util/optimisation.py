@@ -28,16 +28,16 @@ import tempfile
 import shutil
 
 ############### HPC paths
-SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence" 
-ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "full_archives_tar_gz") 
-os.makedirs(ARCHIVES_PATH, exist_ok=True)
-TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
+# SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence" 
+# ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "full_archives_tar_gz") 
+# os.makedirs(ARCHIVES_PATH, exist_ok=True)
+# TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
 ###############
 
 ######################## Local paths
-# BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
-# ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
-# TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
+BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
+ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
+TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
 ########################
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_for_path, cores_for_path):
@@ -56,30 +56,30 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
         epsilons = [0.05] * len(model.outcomes)
 
     ############# HPC runs
-    run_archive_dir = os.path.join(
-        ARCHIVES_PATH,
-        problem_name_for_path,       
-        f"{cores_for_path}cores",      
-        algorithm_name,                   
-        f"seed{seed}"                      
-    )
-    os.makedirs(run_archive_dir, exist_ok=True)
-    temp_logger_parent_dir = TEMP_LOGGER_BASE_HPC
-    os.makedirs(temp_logger_parent_dir, exist_ok=True)
-    #############
-
-    ############## Local runs
     # run_archive_dir = os.path.join(
-    #     ARCHIVES_PATH_LOCAL,
+    #     ARCHIVES_PATH,
     #     problem_name_for_path,       
     #     f"{cores_for_path}cores",      
     #     algorithm_name,                   
     #     f"seed{seed}"                      
     # )
     # os.makedirs(run_archive_dir, exist_ok=True)
-    # os.makedirs(run_archive_dir, exist_ok=True)
-    # temp_logger_parent_dir = TEMP_LOGGER_BASE_LOCAL
+    # temp_logger_parent_dir = TEMP_LOGGER_BASE_HPC
     # os.makedirs(temp_logger_parent_dir, exist_ok=True)
+    #############
+
+    ############## Local runs
+    run_archive_dir = os.path.join(
+        ARCHIVES_PATH_LOCAL,
+        problem_name_for_path,       
+        f"{cores_for_path}cores",      
+        algorithm_name,                   
+        f"seed{seed}"                      
+    )
+    os.makedirs(run_archive_dir, exist_ok=True)
+    os.makedirs(run_archive_dir, exist_ok=True)
+    temp_logger_parent_dir = TEMP_LOGGER_BASE_LOCAL
+    os.makedirs(temp_logger_parent_dir, exist_ok=True)
     ##############    
     
     final_archive_name = "archive.tar.gz"

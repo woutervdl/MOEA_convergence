@@ -18,15 +18,15 @@ def run_experiments():
     problems = [
         ('DTLZ2', get_dtlz2_problem(4)),
         ('DTLZ3', get_dtlz3_problem(4)), 
-        ('JUSTICE', get_justice_model())  
+        #('JUSTICE', get_justice_model())  
     ]
     algorithms = ['eps_nsgaii', 'sse_nsgaii', 'generational_borg', 'borg']
     core_count_list = [6] 
-    nfe = 200
+    nfe = 70000
     # num_seeds = 5 
     # random.seed(12345)
     # seed_values = random.sample(range(10000, 1000000), num_seeds)
-    seed_values = [12345]#, 23403, 39349, 60930, 93489] 
+    seed_values = [12345, 23403, 39349, 60930, 93489] 
     print(f"Using seed values: {seed_values}")
 
     for problem_name, model in problems:
