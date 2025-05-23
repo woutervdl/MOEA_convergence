@@ -29,15 +29,15 @@ import shutil
 
 ############### HPC paths
 # SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence" 
-# ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "full_archives_tar_gz") 
+# ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives") 
 # os.makedirs(ARCHIVES_PATH, exist_ok=True)
 # TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
 ###############
 
 ######################## Local paths
 BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
-ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_archives")
-TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "local_temp_logger")
+ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "archives")
+TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "temp_logger")
 ########################
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_for_path, cores_for_path):

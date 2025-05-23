@@ -20,7 +20,7 @@ def run_experiments():
         ('DTLZ3', get_dtlz3_problem(4)), 
         #('JUSTICE', get_justice_model())  
     ]
-    algorithms = ['eps_nsgaii', 'sse_nsgaii', 'generational_borg', 'borg']
+    algorithms = ['eps_nsgaii', 'generational_borg', 'borg']
     core_count_list = [6] 
     nfe = 70000
     # num_seeds = 5 

@@ -4,15 +4,16 @@ import os
 import numpy as np
 import h5py
 import pandas as pd
+import math
 
 # Default list of seeds used in the experiments
 DEFAULT_SEEDS = [12345, 93489, 23403, 39349, 60930]
-BASE_RESULTS_DIR = 'hpc/results'
+BASE_RESULTS_DIR = 'results'
 
 def load_hdf5_data(problem_name, moeas, core_counts, group_name):
     """Fixed HDF5 loader matching your HPC file structure exactly"""
     data = []
-    base_dir = os.path.join("hpc/results", problem_name)
+    base_dir = os.path.join("results", problem_name)
     
     for cores in core_counts:
         cores_dir = os.path.join(base_dir, f"{cores}cores")
@@ -63,7 +64,6 @@ def load_hdf5_data(problem_name, moeas, core_counts, group_name):
     
     return data
 
-
 def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
     """Create plots comparing metrics across MOEAs and core counts using HDF5."""
     sns.set_style("white")
@@ -72,11 +72,14 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
     for metric_name in metric_names:
         group_name = 'convergence' if metric_name == 'epsilon_progress' else 'metrics'
         data = load_hdf5_data(problem_name, moeas, core_counts, group_name)
-        #print(f"Loaded {len(data)} entries for {metric_name}")
-        
+
         if not data:
             print(f"No data found for {metric_name}! Skipping plot.")
             continue
+
+        # Calculate min/max for *this* metric only
+        x_min, x_max = float('inf'), float('-inf')
+        y_min, y_max = float('inf'), float('-inf')
 
         # Dynamically determine unique seeds for coloring
         all_seeds = list({entry['seed'] for entry in data})
@@ -93,10 +96,10 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
         for row_idx, cores in enumerate(core_counts):
             for col_idx, moea in enumerate(moeas):
                 ax = axes[row_idx, col_idx]
-                
+
                 filtered_data = [
-                    entry for entry in data 
-                    if entry['cores'] == cores 
+                    entry for entry in data
+                    if entry['cores'] == cores
                     and entry['algorithm'] == moea
                     and metric_name in entry
                     and 'nfe' in entry
@@ -113,9 +116,21 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
                     sorted_idx = np.argsort(nfe)
                     nfe_sorted = nfe[sorted_idx]
                     metric_vals_sorted = metric_vals[sorted_idx]
+                    metric_vals_sorted[np.isinf(metric_vals_sorted)] = 0
+                    metric_vals_sorted[np.isnan(metric_vals_sorted)] = 0
                     points_to_skip = 0
                     if metric_name == 'time_efficiency':
-                        points_to_skip = 10 # Skip first 10 points for time efficiency for better visualisation scale
+                        points_to_skip = 2  # Skip first 10 points for time efficiency for better visualisation scale
+                    if metric_name == 'spread':
+                        points_to_skip = 1  # Skip first point as it is always 0
+                    if metric_name == 'spacing':
+                        points_to_skip = 1  # Skip first point as it is always 0
+
+                    if len(nfe) > 0 and len(metric_vals_sorted) > 0:
+                        x_min = min(x_min, np.min(nfe[points_to_skip:]))
+                        x_max = max(x_max, np.max(nfe[points_to_skip:]))
+                        y_min = min(y_min, np.min(metric_vals_sorted[points_to_skip:]))
+                        y_max = max(y_max, np.max(metric_vals_sorted[points_to_skip:]))
 
                     ax.plot(nfe_sorted[points_to_skip:], metric_vals_sorted[points_to_skip:],
                             color=seed_to_color[seed],
@@ -124,11 +139,18 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
                 if row_idx == 0:
                     ax.set_title(f'{moea}')
                 if col_idx == 0:
-                    ax.set_ylabel(f'{cores} cores\n{metric_name.replace("_", " ").capitalize()}')
+                    if metric_name == 'time_efficiency':
+                        ax.set_ylabel(f'{cores} cores\nHV/NFE efficiency')  # Renaming to reflect actual metric (wrong name given during metric calculation)
+                    else:
+                        ax.set_ylabel(f'{cores} cores\n{metric_name.replace("_", " ").capitalize()}')
                 if row_idx == len(core_counts) - 1:
                     ax.set_xlabel('nfe')
 
-        handles = [plt.Line2D([0], [0], color=seed_to_color[seed], lw=2) 
+                # Set x and y axis limits
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(y_min, y_max)
+
+        handles = [plt.Line2D([0], [0], color=seed_to_color[seed], lw=2)
                  for seed in sorted(all_seeds)]
         labels = [f'Seed {seed}' for seed in sorted(all_seeds)]
         fig.legend(handles, labels, loc='lower center', ncol=min(5, len(all_seeds)))
@@ -137,6 +159,7 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
         plt.savefig(f'./figures/{problem_name}/{metric_name}_by_cores.png', dpi=300)
         plt.show()
         plt.close()
+
 
 def plot_runtime_comparison(problem_name, moeas, core_counts, seeds_list=None):
     """
@@ -472,6 +495,13 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
     moea_palette = sns.color_palette("tab10", len(moeas))
     moea_to_color = {moea: moea_palette[i] for i, moea in enumerate(moeas)}
 
+    y_min, y_max = float('inf'), float('-inf') 
+    for entry in metrics_data:
+        if 'hypervolume' in entry and entry['hypervolume'] is not None and len(entry['hypervolume']) > 0:
+            hv = entry['hypervolume']
+            y_min = min(y_min, np.min(hv))
+            y_max = max(y_max, np.max(hv))
+            
     for i, cores in enumerate(core_counts):
         ax = axes[i]
         ax_has_data = False # Flag to check if any data was plotted on this axis
