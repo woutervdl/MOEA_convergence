@@ -248,10 +248,6 @@ def plot_speedup_comparison(problem_name, moeas, core_counts, seeds, show_indivi
             ax.plot(moea_data['cores'], moea_data['speedup'], marker='o', linewidth=2,
                    label=f'{moea} (Mean)')
         
-        # # Add ideal speedup line
-        # max_cores = max(core_counts)
-        # ax.plot([1, max_cores], [1, max_cores], 'k--', label='Ideal Speedup')
-        
         ax.set_xlabel('Number of cores')
         ax.set_ylabel('Speedup')
         ax.set_title(f'{problem_name} Speedup comparison')

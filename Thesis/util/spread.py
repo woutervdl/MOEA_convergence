@@ -6,7 +6,7 @@ class Spread:
     
     def __init__(self, problem=None):
         """
-        Initialize the spread metric.
+        Initialise the spread metric.
         
         Parameters:
         -----------
@@ -58,10 +58,7 @@ class Spread:
         float
             The spread value.
         """
-        # Sort solutions along the Pareto front using lexicographical sorting
-        # Note: np.lexsort is not supported by numba, so we do this outside the function
-        # This is handled in the calling function
-        
+        # Sort solutions along the Pareto front 
         # Compute Euclidean distances between consecutive solutions
         distances = np.empty(solutions.shape[0]-1)
         for i in range(solutions.shape[0]-1):

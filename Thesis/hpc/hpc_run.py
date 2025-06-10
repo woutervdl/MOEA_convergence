@@ -1,6 +1,7 @@
 import sys
 from Thesis.hpc.run_single_experiment import *
 
+# This script runs a single experiment based on command line arguments and bash files
 if __name__ == "__main__":
     problem_idx = int(sys.argv[1])
     algorithm_idx = int(sys.argv[2])

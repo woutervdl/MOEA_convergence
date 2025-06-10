@@ -8,13 +8,18 @@ import tempfile
 import shutil   
 import pandas as pd
 
+# Set up local directories for saving results
 LOCAL_ARCHIVES_OUTPUT_DIR = "./hdf5_results" 
 os.makedirs(LOCAL_ARCHIVES_OUTPUT_DIR, exist_ok=True)
 
-
 def run_experiments():
+    """
+    Runs optimisation experiments for multiple problems and algorithms, saving results to HDF5 files.
+    Purpose is to quickly locally test the optimisation code.
+    """
     ema_logging.log_to_stderr(ema_logging.INFO)
 
+    # Defining the problems, seeds, MOEAs and core counts
     problems = [
         ('DTLZ2', get_dtlz2_problem(4)),
         ('DTLZ3', get_dtlz3_problem(4)), 
@@ -29,6 +34,7 @@ def run_experiments():
     seed_values = [12345, 23403, 39349, 60930, 93489] 
     print(f"Using seed values: {seed_values}")
 
+    # Loop through each problem, core count, MOEA and seed and run the optimisation experiments
     for problem_name, model in problems:
         print(f"Running experiments for {problem_name}")
         problem_dir = os.path.join(LOCAL_ARCHIVES_OUTPUT_DIR, problem_name)
@@ -78,7 +84,10 @@ def save_results(
         problem_name, 
         algorithm_name_str,    
         cores_val,            
-        seed_val_int):          
+        seed_val_int):
+    """
+    Saves the final archive and epsilon progress DataFrames to an HDF5 file.
+    """          
 
     h5_filename = f"final_state_{problem_name}_{algorithm_name_str}_{cores_val}cores_seed{seed_val_int}.h5"
     final_h5_filepath = os.path.join(final_path, h5_filename)
@@ -114,10 +123,14 @@ def save_results(
                     hf.attrs["algorithm"] = algorithm_name_str
                     hf.attrs["cores"] = cores_val
                     hf.attrs["seed"] = seed_val_int
-            except Exception as write_err: print(f"HDF5 Write Error for {final_h5_filepath}: {write_err}"); raise
+            except Exception as write_err: 
+                print(f"HDF5 Write Error for {final_h5_filepath}: {write_err}")
+                raise
             shutil.move(temp_h5_filepath, final_h5_filepath)
             print(f"  Final state HDF5 saved to: {final_h5_filepath}")
-    except Exception as temp_err: print(f"Temp Dir/Move Error for {final_h5_filepath}: {temp_err}"); raise
+    except Exception as temp_err: 
+        print(f"Temp Dir/Move Error for {final_h5_filepath}: {temp_err}")
+        raise
 
 
 if __name__ == "__main__":

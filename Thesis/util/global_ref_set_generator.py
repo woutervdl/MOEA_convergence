@@ -16,7 +16,7 @@ problem = to_problem(model, searchover="levers")
 # Container for DataFrames
 df_list = []
 
-# Loop over all combinations
+# Loop over all combinations to create a big unified set
 for cores in core_counts:
     for moea in moeas:
         for seed in seeds:
@@ -31,6 +31,7 @@ for cores in core_counts:
             else:
                 print(f"File not found: {h5_path}")
 
+# Perform nondominated sorting to create a global reference set
 global_ref_set = epsilon_nondominated(df_list, epsilons, problem)
 
 # Save result

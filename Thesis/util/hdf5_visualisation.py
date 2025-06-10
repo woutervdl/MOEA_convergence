@@ -10,11 +10,13 @@ import math
 DEFAULT_SEEDS = [12345, 93489, 23403, 39349, 60930]
 BASE_RESULTS_DIR = 'results'
 
+# Helper function to load hdf5 data from specific file structure
 def load_hdf5_data(problem_name, moeas, core_counts, group_name):
-    """Fixed HDF5 loader matching your HPC file structure exactly"""
+    """Fixed HDF5 loader matching HPC file structure exactly"""
     data = []
     base_dir = os.path.join("results", problem_name)
     
+    # Loop through all core counts, MOEAs and seed directories
     for cores in core_counts:
         cores_dir = os.path.join(base_dir, f"{cores}cores")
         if not os.path.exists(cores_dir):
@@ -33,12 +35,10 @@ def load_hdf5_data(problem_name, moeas, core_counts, group_name):
             
             for seed_dir in seed_dirs:
                 try:
-                    # Extract numeric seed from directory name (seed12345 → 12345)
+                    # Extract numeric seed from directory name (seed12345 -> 12345)
                     seed = int(seed_dir[4:])  # Remove "seed" prefix
                     hdf5_file = f"results_{problem_name}_{moea}_{cores}cores_seed{seed}.h5"
                     hdf5_path = os.path.join(moea_dir, seed_dir, hdf5_file)
-                    
-                    #print(f"Checking: {hdf5_path}")
                     
                     if not os.path.exists(hdf5_path):
                         print(f"Missing HDF5 file: {hdf5_path}")
@@ -57,11 +57,9 @@ def load_hdf5_data(problem_name, moeas, core_counts, group_name):
                             **{k: group[k][()] for k in group.keys()}  # Load all datasets
                         }
                         data.append(entry)
-                        #print(f"Loaded {len(group.keys())} datasets from {hdf5_path}")
                         
                 except Exception as e:
-                    print(f"Error processing {seed_dir}: {str(e)}")
-    
+                    print(f"Error processing {seed_dir}: {str(e)}")   
     return data
 
 def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
@@ -77,7 +75,7 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
             print(f"No data found for {metric_name}! Skipping plot.")
             continue
 
-        # Calculate min/max for *this* metric only
+        # Calculate min/max for the x- and y-axis to ensure constant plot scaling
         x_min, x_max = float('inf'), float('-inf')
         y_min, y_max = float('inf'), float('-inf')
 
@@ -97,6 +95,7 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
             for col_idx, moea in enumerate(moeas):
                 ax = axes[row_idx, col_idx]
 
+                # Filter data for the current core count and MOEA
                 filtered_data = [
                     entry for entry in data
                     if entry['cores'] == cores
@@ -113,11 +112,11 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
                     seed = entry['seed']
                     nfe = entry['nfe']
                     metric_vals = entry[metric_name]
-                    sorted_idx = np.argsort(nfe)
+                    sorted_idx = np.argsort(nfe) # Sort be nfe to ensure correct plotting order
                     nfe_sorted = nfe[sorted_idx]
                     metric_vals_sorted = metric_vals[sorted_idx]
-                    metric_vals_sorted[np.isinf(metric_vals_sorted)] = 0
-                    metric_vals_sorted[np.isnan(metric_vals_sorted)] = 0
+                    metric_vals_sorted[np.isinf(metric_vals_sorted)] = 0 # Replace inf with 0 for plotting
+                    metric_vals_sorted[np.isnan(metric_vals_sorted)] = 0 # Replace NaN with 0 for plotting
                     points_to_skip = 0
                     if metric_name == 'time_efficiency':
                         points_to_skip = 2  # Skip first 10 points for time efficiency for better visualisation scale
@@ -127,11 +126,13 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
                         points_to_skip = 1  # Skip first point as it is always 0
 
                     if len(nfe) > 0 and len(metric_vals_sorted) > 0:
+                        # Update axis limits
                         x_min = min(x_min, np.min(nfe[points_to_skip:]))
                         x_max = max(x_max, np.max(nfe[points_to_skip:]))
                         y_min = min(y_min, np.min(metric_vals_sorted[points_to_skip:]))
                         y_max = max(y_max, np.max(metric_vals_sorted[points_to_skip:]))
 
+                    # Plot metric values against NFE
                     ax.plot(nfe_sorted[points_to_skip:], metric_vals_sorted[points_to_skip:],
                             color=seed_to_color[seed],
                             label=f'Seed {seed}' if (col_idx == 0 and row_idx == 0) else "")
@@ -150,6 +151,7 @@ def plot_metrics_by_cores(problem_name, moeas, core_counts, metric_names):
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(y_min, y_max)
 
+        # Create legend for seeds
         handles = [plt.Line2D([0], [0], color=seed_to_color[seed], lw=2)
                  for seed in sorted(all_seeds)]
         labels = [f'Seed {seed}' for seed in sorted(all_seeds)]
@@ -212,9 +214,11 @@ def plot_runtime_comparison(problem_name, moeas, core_counts, seeds_list=None):
                             })
     runtime_df = pd.DataFrame(runtime_entries)
 
+    # Group by algorithm and cores to calculate mean and std
     runtime_summary = runtime_df.groupby(['algorithm', 'cores'])['runtime'].agg(['mean', 'std']).reset_index()
     runtime_summary['std'] = runtime_summary['std'].fillna(0)
 
+    # Plot runtime with error bars
     for moea in moeas:
         moea_data = runtime_summary[runtime_summary['algorithm'] == moea]
         if not moea_data.empty:
@@ -287,8 +291,8 @@ def plot_speedup_comparison(problem_name, moeas, core_counts, seeds_list=None, s
 
     runtime_df = pd.DataFrame(runtime_entries)
 
-    speedup_data = []
-    mean_speedups = []
+    speedup_data = [] # For individual seed speedups
+    mean_speedups = [] # For mean speedups across all seeds
 
     # Calculate mean runtimes first
     runtime_summary = runtime_df.groupby(['algorithm', 'cores'])['runtime'].mean().reset_index()
@@ -322,7 +326,8 @@ def plot_speedup_comparison(problem_name, moeas, core_counts, seeds_list=None, s
                         'speedup': seed_baseline_time / row['runtime']
                     })
 
-    plotted_individual_labels = set()
+    plotted_individual_labels = set() # Track which seeds have been plotted to avoid duplicates in legend
+    # Plot individual seed speedups if requested
     if show_individual_seeds and speedup_data:
         seed_df = pd.DataFrame(speedup_data)
         palette = sns.color_palette("husl", len(seeds_to_iterate))
@@ -391,7 +396,7 @@ def plot_final_metric_comparison(problem_name, moeas, core_counts, metric_name):
         
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    final_metric_data = []
+    final_metric_data = [] # Store final metric values for plotting
     
     # Load data from HDF5 files
     data = load_hdf5_data(problem_name, moeas, core_counts, 'metrics')
@@ -421,7 +426,7 @@ def plot_final_metric_comparison(problem_name, moeas, core_counts, metric_name):
     
     # Plot final metric value vs cores for each algorithm
     for moea in moeas:
-        moea_data = summary[summary['algorithm'] == moea]
+        moea_data = summary[summary['algorithm'] == moea] # Filter data for this MOEA
         ax.errorbar(moea_data['cores'], moea_data['mean'], yerr=moea_data['std'], 
                     marker='o', capsize=5, label=f'{moea} (Mean ± Std Dev)')
     
@@ -453,6 +458,7 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
     # Determine seeds to iterate over
     seeds_to_iterate = seeds_list if seeds_list is not None else DEFAULT_SEEDS
 
+    # Create a subplot for each core count in horizontal layout
     fig, axes = plt.subplots(1, len(core_counts), figsize=(5*len(core_counts), 6), sharey=True)
     axes = [axes] if len(core_counts) == 1 else axes # Ensure axes is always iterable
 
@@ -462,9 +468,11 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
     output_dir = os.path.join(base_figure_dir, problem_name)
     os.makedirs(output_dir, exist_ok=True)
 
+    # Collect runtime data for all runs
     runtime_entries = []
     problem_base_dir = os.path.join(BASE_RESULTS_DIR, problem_name)
 
+    # Loop through all combinations of cores, MOEAs, and seeds
     for cores_rt in core_counts:
         cores_dir = os.path.join(problem_base_dir, f"{cores_rt}cores")
         if not os.path.isdir(cores_dir): continue
@@ -477,6 +485,7 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
                 h5_filename = f"results_{problem_name}_{moea_rt}_{cores_rt}cores_seed{seed_rt}.h5"
                 h5_filepath = os.path.join(seed_dir_path, h5_filename)
 
+                # Extract runtime info if the file exists
                 if os.path.exists(h5_filepath):
                     with h5py.File(h5_filepath, 'r') as hf:
                         runtime_seconds = hf.attrs.get("runtime")
@@ -492,16 +501,19 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
 
     metrics_data = load_hdf5_data(problem_name, moeas, core_counts, 'metrics')
 
+    # Give each MOEA a colour
     moea_palette = sns.color_palette("tab10", len(moeas))
     moea_to_color = {moea: moea_palette[i] for i, moea in enumerate(moeas)}
 
+    # Determin global y-axis limits for consistent scaling
     y_min, y_max = float('inf'), float('-inf') 
     for entry in metrics_data:
         if 'hypervolume' in entry and entry['hypervolume'] is not None and len(entry['hypervolume']) > 0:
             hv = entry['hypervolume']
             y_min = min(y_min, np.min(hv))
             y_max = max(y_max, np.max(hv))
-            
+
+    # Loop over each subplot/core count        
     for i, cores in enumerate(core_counts):
         ax = axes[i]
         ax_has_data = False # Flag to check if any data was plotted on this axis
@@ -550,7 +562,7 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
                         all_seed_hvs.append(hv_sorted)
                         max_time_for_mean = max(max_time_for_mean, estimated_times[-1])
 
-            # Calculate and plot mean trend (more complex with varying time axes)
+            # Calculate and plot mean trend
             if all_seed_times:
                 # Create a common time axis for interpolation
                 common_time = np.linspace(0, max_time_for_mean, num=200) # Adjust num for resolution
@@ -575,10 +587,10 @@ def plot_hypervolume_over_time(problem_name, moeas, core_counts, seeds_list=None
         ax.set_xlabel('Estimated Wall-clock Time (s)')
         ax.grid(True, linestyle='--', alpha=0.7)
         # Ensure x-axis starts at or near 0
-        ax.set_xlim(left=-0.02 * ax.get_xlim()[1]) # Allow slight negative margin if needed
+        ax.set_xlim(left=-0.02 * ax.get_xlim()[1]) # Allow slight negative margin
 
 
-    # Common Y Label and Legend
+    # Common y label and legend
     axes[0].set_ylabel('Hypervolume')
     # Add legend to the first plot if it has data, otherwise try the next
     for ax_leg in axes:

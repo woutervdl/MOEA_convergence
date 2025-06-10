@@ -10,7 +10,7 @@ import pandas as pd
 class DTLZ2Model(Model):
     def __init__(self, name, n_objectives, n_position_variables=10):
         """
-        Initialize the DTLZ2 model
+        Initialise the DTLZ2 model
         
         Parameters:
         -----------
@@ -21,9 +21,10 @@ class DTLZ2Model(Model):
         n_position_variables : int, optional
             Number of position-related variables, defaulted at 10
         """
-        # Calculate total variables using the formula: n + k - 1
+        # Calculate total number of decision variables using the formula: n + k - 1
         n_variables = n_position_variables + n_objectives - 1
         
+        # Initilalise the model with the DTLZ2 evaluation function
         super().__init__(name, function=self.dtlz2_function)
         
         # Store parameters
@@ -56,7 +57,7 @@ class DTLZ2Model(Model):
         # Extract variables from kwargs
         variables = np.array([kwargs[f'x{i}'] for i in range(self.n_variables)])
         
-        # Create a Solution object
+        # Create a Solution object and set its variables
         solution = Solution(self.problem)
         solution.variables = variables
         
@@ -97,12 +98,15 @@ class DTLZ2Model(Model):
         # 4. Calculate corresponding objective values (using helper, g=0)
         f_values = calculate_dtlz_objectives(xI_values, M)
 
+        # Set column names for levers and outcomes
         lever_names = [l.name for l in self.levers]
         outcome_names = [o.name for o in self.outcomes]
 
+        # Create DataFrames for levers and outcomes
         df_levers = pd.DataFrame(x_values, columns=lever_names)
         df_outcomes = pd.DataFrame(f_values, columns=outcome_names)
 
+        # Concatenate levers and outcomes into a single DataFrame
         pareto_solutions_df = pd.concat([df_levers, df_outcomes], axis=1)
 
         return pareto_solutions_df
@@ -128,7 +132,7 @@ def get_dtlz2_problem(n_objectives, n_position_variables=10):
 class DTLZ3Model(Model):
     def __init__(self, name, n_objectives, n_position_variables=10):
         """
-        Initialize the DTLZ3 model
+        Initialise the DTLZ3 model
         
         Parameters:
         -----------
@@ -139,9 +143,10 @@ class DTLZ3Model(Model):
         n_position_variables : int, optional
             Number of position-related variables, defaulted at 10
         """
-        # Calculate total variables using the formula: n + k - 1
+        # Calculate total number of decision variables using the formula: n + k - 1
         n_variables = n_position_variables + n_objectives - 1
         
+        # Initialise the model with the DTLZ3 evaluation function
         super().__init__(name, function=self.dtlz3_function)
         
         # Store parameters
@@ -187,9 +192,9 @@ class DTLZ3Model(Model):
     def generate_true_pareto_solutions(self, n_points=1000):
         """
         Generates decision variables AND corresponding objective values
-        for points approximating the true *global* Pareto front of DTLZ3.
+        for points approximating the true global Pareto front of DTLZ3.
 
-        Variables x_M are fixed at 0.5 (minimizes g). Variables x_I are sampled.
+        Variables x_M are fixed at 0.5 (minimises g). Variables x_I are sampled.
         Objectives are calculated directly (assuming g=0).
 
         Returns:
@@ -235,12 +240,28 @@ def get_dtlz3_problem(n_objectives, n_position_variables=10):
     return DTLZ3Model("DTLZ3", n_objectives, n_position_variables)
 
 def calculate_dtlz_objectives(xI_values, M):
-    """Calculates DTLZ objectives from x_I variables assuming g=0."""
+    """
+    Calculates DTLZ objectives from x_I variables assuming g=0.
+    Used for generating Pareto front samples for DTLZ2/3.
+
+    Parameters:
+    -----------
+    xI_values : np.ndarray
+        Array of shape (n_points, M-1) with sampled x_I variables
+    M : int
+        Number of objectives
+
+    Returns:
+    --------
+    f : np.ndarray
+        Array of shape (n_points, M) with calculated objective values
+    """
     n_points = xI_values.shape[0]
     f = np.ones((n_points, M))
     # Convert x_I (in [0,1]) to angles theta (in [0, pi/2])
     thetas = xI_values * (np.pi / 2.0)
 
+    # Loop over objectives to calculate their values
     for m in range(M): # Objective index m=0..M-1
         idx = M - 1 - m # Corresponding theta/xI index
         if m == 0: # Last objective f_M
@@ -257,7 +278,7 @@ def calculate_dtlz_objectives(xI_values, M):
 class JUSTICEModel(Model):
     def __init__(self, name="JUSTICE", n_regions=None, n_timesteps=None):
         """
-        Initialize the JUSTICE model
+        Initialise the JUSTICE model
         
         Parameters:
         -----------
@@ -268,10 +289,10 @@ class JUSTICEModel(Model):
         n_timesteps : int, optional
             Number of timesteps to simulate (if None, will calculate from TimeHorizon)
         """
-        # Initialize configuration parameters
+        # Initialise configuration parameters
         self.configure_model_parameters()
         
-        # Initialize data loader and time horizon
+        # Initialise data loader and time horizon
         self.data_loader = DataLoader()
         self.time_horizon = TimeHorizon(
             start_year=self.start_year,
@@ -293,12 +314,13 @@ class JUSTICEModel(Model):
             timestep=self.timestep
         )
 
+        # Calculate the index for the year of interest for temperature
         self.temperature_year_of_interest_index = self.time_horizon.year_to_timestep(
             year=self.temperature_year_of_interest,
             timestep=self.timestep
         )
         
-        # Initialize the model with the justice function
+        # Initialise the model with the justice function
         super().__init__(name, function=self.justice_function)
         
         # Define model components
@@ -335,7 +357,7 @@ class JUSTICEModel(Model):
         centers_shape = self.n_rbfs * self.n_inputs_rbf
         weights_shape = self.n_regions * self.n_rbfs
         
-        # Initialize lever lists
+        # Initialise lever lists
         centers_levers = []
         radii_levers = []
         weights_levers = []
@@ -417,9 +439,9 @@ class JUSTICEModel(Model):
         dict
             Dictionary with model outputs
         """
-        # Add the scenario index to the kwargs, passing it as constant didn't work
+        # Adding the scenario index to the kwargs, passing it as constant didn't work
         kwargs["ssp_rcp_scenario"] = self.reference_scenario_index
-        # Simply pass the kwargs directly to model_wrapper_emodps
+        # Calling the model wrapper with all inputs
         welfare, years_above_threshold, welfare_loss_damage, welfare_loss_abatement = THESIS_model_wrapper_emodps(**kwargs)
         
         return {

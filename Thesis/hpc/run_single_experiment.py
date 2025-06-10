@@ -7,9 +7,10 @@ import numpy as np
 import h5py
 import tempfile
 
+# Set base directory to scratch for HPC runs
 SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence"
 
-# Configure once at module level
+# Configure problem settings once at module level
 ema_logging.log_to_stderr(ema_logging.INFO)
 MODEL_MAP = {
     'DTLZ2': (get_dtlz2_problem, 4),
@@ -18,15 +19,17 @@ MODEL_MAP = {
 }
 
 def run_single_experiment(problem_name, algorithm, cores, nfe, seed):
-    np.random.seed(seed); random.seed(seed)
+    np.random.seed(seed); random.seed(seed) # Setting rng for reproducibility
 
     # Path for the HDF5 file
     final_result_dir = os.path.join(SCRATCH_BASE, "hdf5_results", problem_name, f"{cores}cores", algorithm, f"seed{seed}")
     os.makedirs(final_result_dir, exist_ok=True)
 
+    # Selecting the model based on the problem name
     model_func, n_obj = MODEL_MAP[problem_name]
     model = model_func(n_obj) if n_obj else model_func()
 
+    # Run the optimisation experiment
     results_list, convergences_list, runtimes_list = run_optimisation_experiment(
         model=model,
         algorithms=[algorithm],
@@ -36,6 +39,7 @@ def run_single_experiment(problem_name, algorithm, cores, nfe, seed):
         problem_name_for_path=problem_name 
     )
 
+    # Save the results to HDF5
     save_single_result(
         results_list[0],      
         convergences_list[0],  
@@ -57,6 +61,7 @@ def save_single_result(
         algorithm, 
         cores, 
         seed_val):
+    # Set up the final path and filename
     h5_filename = f"final_state_{problem_name}_{algorithm}_{cores}cores_seed{seed_val}.h5"
     final_h5_filepath = os.path.join(final_path, h5_filename)
 
@@ -85,6 +90,6 @@ def save_single_result(
                     hf.attrs["cores"] = cores
                     hf.attrs["seed"] = seed_val
             except Exception as write_err: print(f"HDF5 Write Error: {write_err}"); raise
-            shutil.move(temp_h5_filepath, final_h5_filepath)
+            shutil.move(temp_h5_filepath, final_h5_filepath) # Move the temp HDF5 file to the final location
             print(f"Final state HDF5 saved to {final_h5_filepath}")
     except Exception as temp_err: print(f"Temp Dir/Move Error: {temp_err}"); raise

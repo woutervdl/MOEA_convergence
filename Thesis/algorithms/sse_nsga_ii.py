@@ -29,11 +29,11 @@ class SteadyStateNSGAII_for_EpsilonArchive(NSGAII):
     def iterate(self):
         """
         Performs one steady-state iteration:
-        1. Select parents (typically 2).
-        2. Create offspring (typically 1 or 2).
+        1. Select parents
+        2. Create offspring
         3. Evaluate new offspring.
-        4. Integrate offspring into the population using NSGA-II's selection (rank & diversity).
-        5. Add the evaluated offspring to the EpsilonBoxArchive.
+        4. Integrate offspring into the population using NSGA-II's selection (rank & diversity)
+        5. Add the evaluated offspring to the EpsilonBoxArchive
         """
         # 1. Select parents
         # If variator.arity is not defined or different from selector needs, adjust.
@@ -42,14 +42,14 @@ class SteadyStateNSGAII_for_EpsilonArchive(NSGAII):
         parents = self.selector.select(num_parents, self.population)
 
         # 2. Create offspring
-        offspring_list = self.variator.evolve(parents) # variator typically produces 1 or 2 offspring
+        offspring_list = self.variator.evolve(parents)
 
         # 3. Evaluate new offspring
         self.evaluate_all(offspring_list) # Updates self.nfe
 
         # 4. Integrate offspring and select next population (N + k -> N)
-        # For each new offspring, add it to the pool and re-select.
-        # This maintains population size and uses NSGA-II's survival criteria.
+        # For each new offspring, add it to the pool and re-select
+        # This maintains population size and uses NSGA-II's survival criteria
         current_population = list(self.population) # Make a mutable copy
         for offspring_individual in offspring_list:
             # Combine current population and the new offspring
@@ -64,7 +64,7 @@ class SteadyStateNSGAII_for_EpsilonArchive(NSGAII):
 
         # 5. Update the Epsilon Archive with the (evaluated) offspring
         # self.archive is the EpsilonBoxArchive instance.
-        # Adding offspring_list ensures new candidates are considered by the archive.
+        # Adding offspring_list ensures new candidates are considered by the archive
         self.archive.extend(offspring_list)
 
 # The wrapper class remains very similar, just using the new core

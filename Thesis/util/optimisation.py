@@ -1,47 +1,35 @@
 from Thesis.algorithms.borgMOEA import BorgMOEA
 from Thesis.algorithms.sse_nsga_ii import SteadyStateEpsNSGAII
-from Thesis.util.spread import Spread
-from ema_workbench.em_framework.optimization import (HypervolumeMetric,
+from ema_workbench.em_framework.optimization import (
                                                      EpsilonProgress,
                                                      ArchiveLogger,
-                                                     EpsilonIndicatorMetric,
-                                                     GenerationalDistanceMetric,
-                                                     SpacingMetric,
                                                      EpsNSGAII,
-                                                     GenerationalBorg,
-                                                     to_problem,
-                                                     epsilon_nondominated)
+                                                     GenerationalBorg)
 from ema_workbench import MultiprocessingEvaluator, ema_logging
-from ema_workbench.em_framework.outcomes import ScalarOutcome
 from ema_workbench.em_framework.points import Scenario 
-import pandas as pd
 import os
 import time
-from JUSTICE_fork.solvers.convergence.hypervolume import calculate_hypervolume_from_archives
-from concurrent.futures import ProcessPoolExecutor
-from functools import partial
-from concurrent.futures import ThreadPoolExecutor
-import gc
-from numba import jit,prange
-import numpy as np
 import tempfile
 import shutil
 
-############### HPC paths
+############### HPC paths (comment in for HPC runs)
 # SCRATCH_BASE = "/scratch/wmvanderlinden/MOEA_convergence" 
 # ARCHIVES_PATH = os.path.join(SCRATCH_BASE, "archives") 
 # os.makedirs(ARCHIVES_PATH, exist_ok=True)
 # TEMP_LOGGER_BASE_HPC = os.path.join(SCRATCH_BASE, "temp_logger")
 ###############
 
-######################## Local paths
+######################## Local paths (comment in for local runs)
 BASE_PATH_LOCAL = "." # Uses current directory (.) as the base
 ARCHIVES_PATH_LOCAL = os.path.join(BASE_PATH_LOCAL, "archives")
 TEMP_LOGGER_BASE_LOCAL = os.path.join(BASE_PATH_LOCAL, "temp_logger")
 ########################
 
 def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_for_path, cores_for_path):
-    """ HPC version: Runs optimisation and saves .tar.gz to a structured path. """
+    """
+    Runs a single optimisation experiment and saves the resulting archive to a structured path.
+    Handles both local and HPC directory structures.
+    """
     
     # Setting epsilon values
     if model.name == 'JUSTICE':
@@ -53,9 +41,9 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
             10     # Welfare loss abatement
         ]
     else:
-        epsilons = [0.05] * len(model.outcomes)
+        epsilons = [0.05] * len(model.outcomes) # For the DTLZ2 problems
 
-    ############# HPC runs
+    ############# HPC runs (comment in for HPC runs)
     # run_archive_dir = os.path.join(
     #     ARCHIVES_PATH,
     #     problem_name_for_path,       
@@ -68,7 +56,7 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
     # os.makedirs(temp_logger_parent_dir, exist_ok=True)
     #############
 
-    ############## Local runs
+    ############## Local runs (comment in for local runs)
     run_archive_dir = os.path.join(
         ARCHIVES_PATH_LOCAL,
         problem_name_for_path,       
@@ -91,6 +79,7 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
         dir=temp_logger_parent_dir
     )
 
+    # Create convergence metrics to log progress
     convergence_metrics = [
         ArchiveLogger(
             temp_log_base_dir, # Log to temp dir first
@@ -101,13 +90,15 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
         EpsilonProgress(),
     ]
 
+    # Select the algorithm based on the provided name
     if algorithm_name == 'eps_nsgaii': algorithm = EpsNSGAII
     elif algorithm_name == 'borg': algorithm = BorgMOEA
     elif algorithm_name == 'generational_borg': algorithm = GenerationalBorg
     elif algorithm_name == 'sse_nsgaii': algorithm = SteadyStateEpsNSGAII
 
-    start_time = time.time()
+    start_time = time.time() # Start timing the optimisation
 
+    # Prepare the optimisation parameters
     opt_params = {
         'nfe': nfe, 
         'searchover': "levers", 
@@ -118,9 +109,11 @@ def optimise_problem(evaluator, model, algorithm_name, nfe, seed, problem_name_f
         'population_size': 100
     }
 
+    # JUSTICE model requires a reference scenario
     if model.name == 'JUSTICE':
         opt_params['reference'] = Scenario("reference", ssp_rcp_scenario=model.scenario_string)
 
+    # Run the optimisation
     result_final_archive, convergence = evaluator.optimize(**opt_params)
     runtime = time.time() - start_time
 
@@ -157,15 +150,18 @@ def run_optimisation_experiment(model, algorithms, nfe, seeds, core_count, probl
     """
     ema_logging.log_to_stderr(ema_logging.INFO)
     
+    # Set up lists to store results
     final_archives_list = []
     epsilon_progress_list = []
     runtimes_list = []
 
+    # Use MultiprocessingEvaluator to run the optimisation in parallel
     with MultiprocessingEvaluator(model, n_processes=core_count) as evaluator:
         for algorithm_name in algorithms:
             for seed_value in seeds:
                 print(f"HPC Starting: {problem_name_for_path}, {algorithm_name}, {core_count} cores, seed {seed_value}, NFE {nfe}")
                 
+                # Run the optimisation for the current algorithm and seed
                 result, convergence, runtime = optimise_problem(
                     evaluator, model, algorithm_name, nfe, seed_value,
                     problem_name_for_path=problem_name_for_path,
