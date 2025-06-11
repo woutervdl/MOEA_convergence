@@ -1,5 +1,5 @@
 # README
-## Parallel Performance of Multi-Objective Evolutionary Algorithms in Climate-Economy Modelling:
+## Parallel Performance of Multi-Objective Evolutionary Algorithms in Climate-Economy Modelling
 **Exploring the Scalability and Convergence Properties of MOEAs for Climate-Economy Decision Support**
 
 ## Research Context
@@ -32,8 +32,8 @@ MOEA_CONVERGENCE/
    │   ├── DTLZ3/                                   # DTLZ3 analysis plots
    │   └── JUSTICE/                                 # JUSTICE analysis plots
    ├── hdf5_results/                                # Final run state HDF5 storage
-   │   ├── DTLZ2/                                   # DTLZ2 final populations & metrics
-   │   ├── DTLZ3/                                   # DTLZ3 final populations & metrics
+   │   ├── DTLZ2/                                   # DTLZ2 final populations, epsilon progress & nfe
+   │   ├── DTLZ3/                                   # DTLZ3 final populations, epsilon progress & nfe
    │   └── JUSTICE/                                 # JUSTICE final populations & metrics
    ├── hpc/                                         # HPC execution management
    │   ├── hpc_slurm_scripts/                       # SLURM job submission scripts
