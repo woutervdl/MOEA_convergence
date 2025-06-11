@@ -1,6 +1,6 @@
 # README
 ## Parallel Performance of Multi-Objective Evolutionary Algorithms in Climate-Economy Modelling:
-**Exploring the Scalability and Convergence Properties of MOEAs for Climate-Economy Decision Support
+**Exploring the Scalability and Convergence Properties of MOEAs for Climate-Economy Decision Support**
 
 ## Research Context
 
