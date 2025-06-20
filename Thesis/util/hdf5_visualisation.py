@@ -4,7 +4,6 @@ import os
 import numpy as np
 import h5py
 import pandas as pd
-import math
 
 # Default list of seeds used in the experiments
 DEFAULT_SEEDS = [12345, 93489, 23403, 39349, 60930]
